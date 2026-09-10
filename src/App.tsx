@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-route
 import { AppHeader } from './components/AppHeader';
 import { Toast } from './components/Toast';
 import { getAllChannels, adultChannels } from './data/channels';
-import { fetchChannels, cachedChannels, cacheIsStale } from './services/catalogService';
+import { fetchChannels, cachedChannels } from './services/catalogService';
 import { registerChannels, fetchRealEPG } from './services/epgService';
 import type { Channel } from './types/channel';
 import type { Movie } from './types/movie';
@@ -104,9 +104,10 @@ function TVPage() {
     : getAllChannels(isAdultUnlocked);
 
   useEffect(() => {
-    // O que veio da visita anterior já está na tela; só vale rebuscar quando
-    // envelheceu, e mesmo assim sem apagar nada se o download falhar.
-    if (remoteChannels && !cacheIsStale()) return;
+    // O que veio da visita anterior já está na tela e fica nela; a lista
+    // publicada é rebuscada sempre, por trás, e só troca a tela se chegar.
+    // Esperar o cache envelhecer (seis horas) escondia canal recém-publicado
+    // de quem tinha aberto o site no mesmo dia — foi assim com o ESPN 5.
     let vivo = true;
     fetchChannels()
       .then((lista) => { if (vivo && lista) setRemoteChannels(lista); })
