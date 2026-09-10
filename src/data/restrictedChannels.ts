@@ -16734,5 +16734,264 @@ export const restrictedChannels: Channel[] = [
     "url": "http://camelo.vip:80/caiolima30/Cb84395/295481.ts",
     "category": "Canais | Notícias",
     "logo": ""
+  },
+  {
+    "id": "restricted-2384-18penthousetv",
+    "name": "[+18] Penthouse TV",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/5010/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2385-18penthousetv2",
+    "name": "[+18] Penthouse TV 2",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/5012/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2386-18adulto01",
+    "name": "[+18] Adulto 01",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6164/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2387-18adulto02",
+    "name": "[+18] Adulto 02",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6165/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2388-18adulto03",
+    "name": "[+18] Adulto 03",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6166/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2389-18adulto04",
+    "name": "[+18] Adulto 04",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6167/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2390-18adulto05",
+    "name": "[+18] Adulto 05",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6168/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2391-18adulto06",
+    "name": "[+18] Adulto 06",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6169/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2392-18adulto07",
+    "name": "[+18] Adulto 07",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6171/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2393-18adulto08",
+    "name": "[+18] Adulto 08",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6172/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2394-18adulto09",
+    "name": "[+18] Adulto 09",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6173/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2395-18adulto10",
+    "name": "[+18] Adulto 10",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6174/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2396-18adulto11",
+    "name": "[+18] Adulto 11",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6175/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2397-18adulto12",
+    "name": "[+18] Adulto 12",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6176/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2398-18adulto13",
+    "name": "[+18] Adulto 13",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6177/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2399-18adulto14",
+    "name": "[+18] Adulto 14",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6178/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2400-18adulto15",
+    "name": "[+18] Adulto 15",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6180/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2401-18adulto16",
+    "name": "[+18] Adulto 16",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6181/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2402-18adulto17",
+    "name": "[+18] Adulto 17",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6182/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2403-18adulto18",
+    "name": "[+18] Adulto 18",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6183/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2404-18adulto19",
+    "name": "[+18] Adulto 19",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6184/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2405-18adulto20",
+    "name": "[+18] Adulto 20",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6185/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2406-18adulto21",
+    "name": "[+18] Adulto 21",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6186/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2407-18adulto22",
+    "name": "[+18] Adulto 22",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6187/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2408-18adulto23",
+    "name": "[+18] Adulto 23",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6188/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2409-18adulto24",
+    "name": "[+18] Adulto 24",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6189/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2410-18adulto25",
+    "name": "[+18] Adulto 25",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6190/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2411-18adulto26",
+    "name": "[+18] Adulto 26",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6191/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2412-18adulto27",
+    "name": "[+18] Adulto 27",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6192/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2413-18adulto28",
+    "name": "[+18] Adulto 28",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6193/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2414-18adulto29",
+    "name": "[+18] Adulto 29",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6194/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2415-18adulto30",
+    "name": "[+18] Adulto 30",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6195/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2416-18adulto31",
+    "name": "[+18] Adulto 31",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6196/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2417-18adulto32",
+    "name": "[+18] Adulto 32",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6197/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2418-18adulto33",
+    "name": "[+18] Adulto 33",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6198/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2419-18adulto34",
+    "name": "[+18] Adulto 34",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6199/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
+  },
+  {
+    "id": "restricted-2420-18adulto35",
+    "name": "[+18] Adulto 35",
+    "url": "http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6200/index.m3u8",
+    "category": "Canais | Adultos",
+    "logo": ""
   }
 ];
