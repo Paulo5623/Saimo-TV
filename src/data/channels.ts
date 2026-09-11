@@ -257,6 +257,8 @@ const rawChannels = [
   { id: 'adult-mg-6198', name: 'Adulto 33', url: 'http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6198/index.m3u8', category: 'Adulto', logo: getFallbackLogo('Adulto 33') },
   { id: 'adult-mg-6199', name: 'Adulto 34', url: 'http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6199/index.m3u8', category: 'Adulto', logo: getFallbackLogo('Adulto 34') },
   { id: 'adult-mg-6200', name: 'Adulto 35', url: 'http://s1w8pqrh.megatv.fun/iptv/VZEVDE3KMBMVGUR9Y2EEL7EF/6200/index.m3u8', category: 'Adulto', logo: getFallbackLogo('Adulto 35') },
+  // satlabscloud, mesmo provedor da grade publicada; o único adulto que ele tem
+  { id: 'adult-satlab-sexprive', name: 'Sex Privé', url: 'https://cdn-mg1.satlabscloud.com.br/SEX_PRIVE/index.m3u8?token=ulDZjn1kAAan1kzoXmUL1B84gijOI6v7', category: 'Adulto', logo: getFallbackLogo('Sex Prive') },
 ];
 
 // Ordem das categorias para exibição
