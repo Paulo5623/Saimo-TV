@@ -4,7 +4,7 @@ import mpegts from 'mpegts.js';
 import type { Channel, ChannelSource } from '../types/channel';
 import { ProgramInfo } from './ProgramInfo';
 import castService, { type CastMethod, type CastState } from '../services/castService';
-import { buildAttempts, isDash, isMpegTs, type Attempt } from '../utils/streamUrl';
+import { buildAttempts, isDash, isMpegTs, marcarSemCors, type Attempt } from '../utils/streamUrl';
 import { makeNestedPathLoader } from '../utils/hlsLoader';
 import { playDash, type DashHandle } from '../services/dashPlayer';
 import './VideoPlayer.css';
@@ -146,6 +146,20 @@ export const VideoPlayer = memo(function VideoPlayer({
     const { source, url, viaProxy } = attempt;
 
     let cancelado = false;
+    /*
+     * Relógio de segurança da tentativa.
+     *
+     * Falhar é fácil de tratar; ficar preso não. O hls.js engole um bloqueio de
+     * CORS nas próprias retentativas e nunca chama o handler de erro, e foi
+     * assim que os canais da Pluto ficaram carregando para sempre no site: o
+     * navegador recusa o acesso direto, o player insiste sozinho e a fonte pelo
+     * proxy, que funcionaria, nunca chega a ser tentada. Doze segundos sem
+     * imagem contam como fonte morta, o mesmo prazo que o aplicativo do Mac usa.
+     */
+    let relogio: number | undefined;
+    const pararRelogio = () => {
+      if (relogio !== undefined) { window.clearTimeout(relogio); relogio = undefined; }
+    };
     setIsLoading(true);
     setError(null);
     intentionalPauseRef.current = false;
@@ -161,6 +175,10 @@ export const VideoPlayer = memo(function VideoPlayer({
     /** Desce para a fonte seguinte; só vira erro quando acabaram todas. */
     const falhar = (motivo: string) => {
       if (cancelado) return;
+      pararRelogio();
+      // Falhou direto e existe a mesma fonte pelo proxy: da próxima vez começa
+      // por ela, em vez de gastar o relógio de novo no mesmo tropeço.
+      if (!viaProxy) marcarSemCors(source.url);
       if (sourceIndex + 1 < attempts.length) {
         console.warn(`[VideoPlayer] tentativa ${sourceIndex + 1}/${attempts.length} falhou (${motivo}), indo para a próxima`);
         setSourceIndex((i) => i + 1);
@@ -169,9 +187,11 @@ export const VideoPlayer = memo(function VideoPlayer({
       setError('Erro ao carregar o canal. Tente novamente.');
       setIsLoading(false);
     };
+    relogio = window.setTimeout(() => falhar('sem imagem em 12 s'), 12_000);
 
     const tocar = () => {
       if (cancelado || !videoRef.current) return;
+      pararRelogio();
       const vid = videoRef.current;
       vid.volume = volumeRef.current;
       vid.play().catch(() => {
@@ -264,6 +284,7 @@ export const VideoPlayer = memo(function VideoPlayer({
 
     return () => {
       cancelado = true;
+      pararRelogio();
       limpar();
     };
   }, [channel, attempts, sourceIndex, reloadTick]);

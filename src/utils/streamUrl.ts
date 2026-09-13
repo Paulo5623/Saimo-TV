@@ -34,9 +34,24 @@ export function needsProxy(source: ChannelSource | { url: string }): boolean {
   return source.url.startsWith('http://');
 }
 
+/**
+ * Onde o proxy atende.
+ *
+ * No site é a própria origem da página, que serve `/api/proxy` como função da
+ * Cloudflare. No aplicativo de janela não há origem de site: quem atende é um
+ * servidor local, e o endereço dele é injetado antes do primeiro script rodar.
+ * O contrato dos dois é o mesmo de propósito — a correção feita para um vale
+ * para o outro sem virar duas implementações.
+ */
+export function proxyBase(): string {
+  const injetado = (globalThis as { __SAIMO_PROXY__?: string }).__SAIMO_PROXY__;
+  if (injetado) return injetado;
+  return typeof window !== 'undefined' ? window.location.origin : '';
+}
+
 /** Endereço do proxy desta origem para uma fonte, com os cabeçalhos dela. */
 export function proxyUrl(source: ChannelSource): string {
-  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  const base = proxyBase();
   let out = `${base}/api/proxy?url=${encodeURIComponent(source.url)}`;
   if (source.referer) out += `&referer=${encodeURIComponent(source.referer)}`;
   if (source.userAgent) out += `&ua=${encodeURIComponent(source.userAgent)}`;
@@ -55,6 +70,39 @@ export interface Attempt {
   viaProxy: boolean;
 }
 
+/*
+ * Servidores que o navegador não deixa abrir direto.
+ *
+ * Nem todo CDN manda o cabeçalho de CORS, e sem ele o navegador recusa o
+ * pedido direto — o proxy resolve, mas só depois de a tentativa direta gastar
+ * o tempo do relógio de segurança. Guardar quem já falhou faz a segunda visita
+ * ir direto ao proxy, e a lista mora no próprio navegador porque a resposta
+ * depende da origem de quem assiste, não do catálogo.
+ */
+const CHAVE_SEM_CORS = 'saimo-sem-cors';
+
+function hostsSemCors(): string[] {
+  try {
+    const bruto = localStorage.getItem(CHAVE_SEM_CORS);
+    return bruto ? (JSON.parse(bruto) as string[]) : ['jmp2.uk'];
+  } catch { return ['jmp2.uk']; }
+}
+
+/** Anota que este endereço não abre direto, só pelo proxy. */
+export function marcarSemCors(url: string): void {
+  try {
+    const host = new URL(url).host;
+    const lista = hostsSemCors();
+    if (lista.includes(host)) return;
+    localStorage.setItem(CHAVE_SEM_CORS, JSON.stringify([...lista, host].slice(-100)));
+  } catch { /* endereço estranho ou armazenamento bloqueado */ }
+}
+
+function precisaComecarPeloProxy(source: ChannelSource): boolean {
+  try { return hostsSemCors().includes(new URL(source.url).host); }
+  catch { return false; }
+}
+
 /**
  * As tentativas de um canal, em ordem.
  *
@@ -65,7 +113,9 @@ export interface Attempt {
 export function buildAttempts(sources: ChannelSource[]): Attempt[] {
   const out: Attempt[] = [];
   for (const source of sources) {
-    if (!needsProxy(source)) out.push({ source, url: source.url, viaProxy: false });
+    if (!needsProxy(source) && !precisaComecarPeloProxy(source)) {
+      out.push({ source, url: source.url, viaProxy: false });
+    }
     out.push({ source, url: proxyUrl(source), viaProxy: true });
   }
   return out;
