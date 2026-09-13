@@ -271,6 +271,8 @@ export const categoryOrder = [
   'Infantil',
   'Documentarios',
   'Entretenimento',
+  'Pluto TV',
+  '24 Horas',
   'Internacionais',
   'Adulto',
   ...restrictedCategories,

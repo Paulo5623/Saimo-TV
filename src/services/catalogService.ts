@@ -61,6 +61,11 @@ export function parseCatalog(text: string): ParsedChannel[] {
       case 'logo':
         if (current) current.logo = value;
         break;
+      // A seção declarada no catálogo publicado; entra como rótulo de grupo,
+      // que é por onde a categoria já era decidida quando vem de um M3U.
+      case 'categoria':
+        if (current) current.group = value;
+        break;
       case 'fonte':
         if (current) current.sources.push({ url: value });
         break;
@@ -192,6 +197,8 @@ function canonizar(rotulo: string): string | null {
   if (/(aberto|globos|tv aberta)/.test(n)) return 'TV Aberta';
   if (/(adulto)/.test(n)) return 'Adulto';
   if (/(internacion|legendado)/.test(n)) return 'Internacionais';
+  if (/^pluto tv$/.test(n)) return 'Pluto TV';
+  if (/^24 horas$/.test(n)) return '24 Horas';
   if (/(variedade|estilo de vida|entretenimento|religios|24 horas|4k)/.test(n)) return 'Entretenimento';
   return null;
 }
