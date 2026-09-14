@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import type { Movie } from '../types/movie';
 import { getProxiedUrl, needsProxy } from '../utils/proxyUrl';
 import castService, { type CastMethod, type CastState } from '../services/castService';
+import * as telemetria from '../services/telemetria';
 import './MoviePlayer.css';
 
 // Interface para informações de série
@@ -22,6 +23,8 @@ interface MoviePlayerProps {
 }
 
 export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo, onNextEpisode }: MoviePlayerProps) {
+  /** Para o monitor: quando esta abertura começou e se já avisou que tocou. */
+  const aberturaRef = useRef<{ titulo: string; url: string; desde: number; avisado: boolean; falhou: boolean } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,6 +85,17 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
 
     const video = videoRef.current;
     const url = getProxiedUrl(movie.url);
+    // Série agrupa pelo nome dela, e não episódio por episódio.
+    const tituloMonitor = seriesInfo?.seriesName || movie.name;
+    telemetria.comecou('vod', tituloMonitor, movie.url, 1);
+    aberturaRef.current = { titulo: tituloMonitor, url: movie.url, desde: performance.now(), avisado: false, falhou: false };
+    const avisarFalha = (detalhe: string) => {
+      const a = aberturaRef.current;
+      if (!a || a.falhou) return;
+      a.falhou = true;
+      telemetria.falhou('vod', a.titulo, a.url, 1, detalhe);
+      if (!a.avisado) telemetria.caiu('vod', a.titulo, 1);
+    };
 
     // Resetar estados para o novo vídeo
     setIsLoading(true);
@@ -141,6 +155,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       setIsLoading(false);
       const videoError = (e.currentTarget as HTMLVideoElement)?.error;
       const code = videoError?.code;
+      avisarFalha(`código ${code ?? '?'}`);
       let message = 'Erro ao carregar o vídeo.';
 
       switch (code) {
@@ -205,6 +220,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
               hls.recoverMediaError();
               break;
             default:
+              avisarFalha(`hls: ${data.details}`);
               setError('Ocorreu um erro fatal ao carregar o vídeo.');
               setIsLoading(false);
               hls.destroy();
@@ -230,6 +246,11 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     // Listeners gerais
     const handleWaiting = () => setIsLoading(true);
     const handlePlaying = () => {
+      const a = aberturaRef.current;
+      if (a && !a.avisado) {
+        a.avisado = true;
+        telemetria.tocou('vod', a.titulo, a.url, 1, performance.now() - a.desde);
+      }
       setIsLoading(false);
       setIsPlaying(true);
     };
@@ -244,6 +265,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     window.addEventListener('beforeunload', saveOnExit);
 
     return () => {
+      telemetria.parou();
       savePreviousProgress();
       localStorage.removeItem('current-movie-id');
       

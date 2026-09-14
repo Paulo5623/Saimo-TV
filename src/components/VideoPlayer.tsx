@@ -7,6 +7,7 @@ import castService, { type CastMethod, type CastState } from '../services/castSe
 import { buildAttempts, isDash, isMpegTs, marcarSemCors, type Attempt } from '../utils/streamUrl';
 import { makeNestedPathLoader } from '../utils/hlsLoader';
 import { playDash, type DashHandle } from '../services/dashPlayer';
+import * as telemetria from '../services/telemetria';
 import './VideoPlayer.css';
 
 interface VideoPlayerProps {
@@ -27,6 +28,9 @@ export const VideoPlayer = memo(function VideoPlayer({
   const hlsRef = useRef<Hls | null>(null);
   const mpegtsRef = useRef<mpegts.Player | null>(null);
   const dashRef = useRef<DashHandle | null>(null);
+  /** Para o monitor: qual abertura é esta e se ela já avisou que tocou. */
+  const aberturaRef = useRef('');
+  const tentativaRef = useRef<{ titulo: string; url: string; fonte: number; desde: number; avisado: boolean } | null>(null);
   const intentionalPauseRef = useRef(false);
   
   const [isPlaying, setIsPlaying] = useState(true);
@@ -121,7 +125,10 @@ export const VideoPlayer = memo(function VideoPlayer({
   // Trocar de canal recomeça pela fonte preferida, não pela que sobrou da última.
   useEffect(() => {
     setSourceIndex(0);
-  }, [channel?.id]);
+    if (!channel) telemetria.parou();
+  }, [channel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => () => telemetria.parou(), []);
 
   /*
    * Reprodução do canal, uma fonte por vez.
@@ -144,6 +151,15 @@ export const VideoPlayer = memo(function VideoPlayer({
       return;
     }
     const { source, url, viaProxy } = attempt;
+
+    // Monitor: trocar de canal ou escolher fonte à mão é uma abertura; descer
+    // para a próxima tentativa depois de uma falha, não.
+    const urlsDasFontes = [...new Set(attempts.map((a) => a.source.url))];
+    const posicaoDaFonte = urlsDasFontes.indexOf(source.url) + 1;
+    const chaveAbertura = `${channel.id}|${reloadTick}`;
+    telemetria.comecou('live', channel.name, source.url, posicaoDaFonte, aberturaRef.current !== chaveAbertura);
+    aberturaRef.current = chaveAbertura;
+    tentativaRef.current = { titulo: channel.name, url: source.url, fonte: posicaoDaFonte, desde: performance.now(), avisado: false };
 
     let cancelado = false;
     /*
@@ -176,6 +192,11 @@ export const VideoPlayer = memo(function VideoPlayer({
     const falhar = (motivo: string) => {
       if (cancelado) return;
       pararRelogio();
+      // A tentativa direta que cai para a mesma fonte pelo proxy é bastidor,
+      // não falha do servidor — contá-la sujaria a taxa de falha dele.
+      if (attempts[sourceIndex + 1]?.source.url !== source.url) {
+        telemetria.falhou('live', channel.name, source.url, posicaoDaFonte, motivo);
+      }
       // Falhou direto e existe a mesma fonte pelo proxy: da próxima vez começa
       // por ela, em vez de gastar o relógio de novo no mesmo tropeço.
       if (!viaProxy) marcarSemCors(source.url);
@@ -184,6 +205,7 @@ export const VideoPlayer = memo(function VideoPlayer({
         setSourceIndex((i) => i + 1);
         return;
       }
+      telemetria.caiu('live', channel.name, urlsDasFontes.length);
       setError('Erro ao carregar o canal. Tente novamente.');
       setIsLoading(false);
     };
@@ -339,6 +361,11 @@ export const VideoPlayer = memo(function VideoPlayer({
     
     // Evento quando o vídeo está reproduzindo dados (frames)
     const handlePlaying = () => {
+      const t = tentativaRef.current;
+      if (t && !t.avisado) {
+        t.avisado = true;
+        telemetria.tocou('live', t.titulo, t.url, t.fonte, performance.now() - t.desde);
+      }
       setIsLoading(false);
       setError(null); // Limpa erro - vídeo está definitivamente funcionando
       recoveryAttemptsRef.current = 0;
