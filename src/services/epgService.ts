@@ -14,9 +14,9 @@
 import type { Program, ChannelEPG, CurrentProgram } from '../types/epg';
 import type { Channel } from '../types/channel';
 import { normalise } from '../utils/nomes';
-import type { Grade, WorkerProgramme } from '../workers/epgWorker';
+import type { Grade, PlutoDoCanal, WorkerProgramme } from '../workers/epgWorker';
 
-const CACHE_KEY = 'saimo-epg-v3';
+const CACHE_KEY = 'saimo-epg-v4';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 interface CacheGuardado {
@@ -30,6 +30,23 @@ interface CacheGuardado {
 const porCanal = new Map<string, Program[]>();
 /** Nome normalizado do canal, para quem chega com o identificador. */
 let nomes: string[] = [];
+/** Nome do canal -> id da Pluto, para os canais que têm a Pluto numa fonte. */
+let pluto: Record<string, PlutoDoCanal> = {};
+
+const PLUTO_ID = /(?:plu-|images\.pluto\.tv\/channels\/)([0-9a-f]{24})/;
+
+/**
+ * id da Pluto do canal, pelo link de alguma fonte ou pelo logo. `principal` diz
+ * se a Pluto é a primeira fonte (ou só está no logo); onde ela é reserva (TV
+ * Cultura, CNBC…) a grade dela é genérica e só entra na falta de outra.
+ */
+function plutoDoCanal(canal: Channel): PlutoDoCanal | undefined {
+  const links = canal.sources?.length ? canal.sources.map((s) => s.url) : [canal.url];
+  const doLink = links.map((l) => PLUTO_ID.exec(l ?? '')?.[1]).find(Boolean);
+  const id = doLink ?? PLUTO_ID.exec(canal.logo ?? '')?.[1];
+  if (!id) return undefined;
+  return { id, principal: !doLink || PLUTO_ID.test(links[0] ?? '') };
+}
 
 type EPGListener = (channelId: string, programs: Program[]) => void;
 const listeners = new Set<EPGListener>();
@@ -134,6 +151,11 @@ function gravarCache(grade: Grade): void {
  */
 export function registerChannels(channels: Channel[]): void {
   nomes = channels.map((c) => c.name);
+  pluto = {};
+  for (const canal of channels) {
+    const achado = plutoDoCanal(canal);
+    if (achado) pluto[canal.name] = achado;
+  }
   if (sigExecutada === null || sigExecutada === assinatura()) return;
   /*
    * A lista definitiva chegou depois de o guia já ter sido montado por outra.
@@ -196,7 +218,7 @@ export async function fetchRealEPG(): Promise<boolean> {
     }
   };
 
-  worker.postMessage({ names: nomes, origin: window.location.origin });
+  worker.postMessage({ names: nomes, pluto, origin: window.location.origin });
   return true;
 }
 

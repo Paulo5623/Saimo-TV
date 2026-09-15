@@ -145,10 +145,26 @@ export interface WorkerProgramme {
 /** Nome do canal -> programação. */
 export type Grade = Record<string, WorkerProgramme[]>;
 
+export interface PlutoDoCanal {
+  id: string;
+  /** A Pluto é a fonte principal do canal, e não uma reserva. */
+  principal: boolean;
+}
+
 interface Pedido {
   names: string[];
   origin: string;
+  /** Nome do canal -> id da Pluto. */
+  pluto?: Record<string, PlutoDoCanal>;
 }
+
+/**
+ * Guia da própria Pluto TV, montado pelo i.mjh.nz. Casa pelo id da Pluto, que já
+ * está no link do canal: pelo nome, "Pluto TV Novelas" pegaria a programação de
+ * outro canal. O raw.githubusercontent libera CORS, então vai direto, sem o
+ * proxy (o redirecionamento do i.mjh.nz passa por uma página que não libera).
+ */
+const PLUTO_URL = 'https://raw.githubusercontent.com/matthuisman/i.mjh.nz/master/PlutoTV/br.xml';
 
 // ============================================================
 // FUSO
@@ -451,12 +467,14 @@ async function parseFeed(
   de: number,
   ate: number,
   porTitulo: Map<string, WorkerProgramme>,
+  /** id do feed -> canal, pulando o casamento por nome (guia da Pluto). */
+  ids?: Map<string, string>,
 ): Promise<Map<string, WorkerProgramme[]>> {
-  const resposta = await fetch(`${origin}/api/proxy?url=${encodeURIComponent(url)}`);
+  const resposta = await fetch(ids ? url : `${origin}/api/proxy?url=${encodeURIComponent(url)}`);
   if (!resposta.ok || !resposta.body) throw new Error(`HTTP ${resposta.status} em ${url}`);
 
   const nomeParaIds = new Map<string, string[]>();
-  let idParaCanal: Map<string, string> | null = null;
+  let idParaCanal: Map<string, string> | null = ids ?? null;
   const saida = new Map<string, WorkerProgramme[]>();
 
   const ELEMENTO = /<(channel|programme)\b[\s\S]*?<\/\1>/g;
@@ -553,7 +571,7 @@ async function comLimite<T, R>(itens: T[], limite: number, trabalho: (item: T) =
   return saida;
 }
 
-async function montar({ names, origin }: Pedido): Promise<void> {
+async function montar({ names: todos, origin, pluto = {} }: Pedido): Promise<void> {
   const agora = Date.now();
   const de = agora - PAST_WINDOW_MS;
   const ate = agora + FUTURE_WINDOW_MS;
@@ -562,6 +580,24 @@ async function montar({ names, origin }: Pedido): Promise<void> {
   const publicar = (parcial: boolean) => {
     self.postMessage({ type: parcial ? 'partial' : 'done', grade });
   };
+
+  // Canal da Pluto só usa o guia da Pluto; os outros guias nem tentam casá-lo.
+  const names = todos.filter((name) => !pluto[name]?.principal);
+  const plutoIds = new Map(Object.entries(pluto).map(([name, p]) => [p.id, name]));
+  const daPluto = plutoIds.size
+    ? parseFeed(PLUTO_URL, origin, [], de, ate, new Map(), plutoIds).catch((erro) => {
+      console.warn('[EPG] guia da Pluto falhou:', erro);
+      return new Map<string, WorkerProgramme[]>();
+    })
+    : Promise.resolve(new Map<string, WorkerProgramme[]>());
+  void daPluto.then((lido) => {
+    let n = 0;
+    for (const [canal, programas] of lido) {
+      if (pluto[canal]?.principal) { grade[canal] = programas; n++; }
+    }
+    console.log(`[EPG] Pluto cobriu ${n} canais`);
+    if (n) publicar(true);
+  });
 
   const comCodigo = names
     .map((name) => [name, CODES[normalise(name)]] as const)
@@ -594,7 +630,7 @@ async function montar({ names, origin }: Pedido): Promise<void> {
   const paginas = await comLimite(comCodigo, 6, baixarGuia);
 
   for (const [name, lista] of paginas) if (lista.length) grade[name] = lista;
-  console.log(`[EPG] meuguia cobriu ${Object.keys(grade).length} de ${comCodigo.length} canais`);
+  console.log(`[EPG] meuguia cobriu ${paginas.filter(([, l]) => l.length).length} de ${comCodigo.length} canais`);
   if (Object.keys(grade).length) publicar(true);
 
   /*
@@ -644,6 +680,11 @@ async function montar({ names, origin }: Pedido): Promise<void> {
     // as imagens, e esperar os dois significava abrir o guia sem nenhuma.
     enriquecer(grade, porTitulo);
     publicar(true);
+  }
+
+  // Onde a Pluto é só reserva, a grade dela é genérica: entra na falta de outra.
+  for (const [canal, programas] of await daPluto) {
+    if (!grade[canal]) grade[canal] = programas;
   }
 
   console.log(`[EPG] guia pronto: ${Object.keys(grade).length} canais`);
