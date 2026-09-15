@@ -202,6 +202,21 @@ export const AppHeader = memo(function AppHeader({
 
         {/* Ações da Direita */}
         <div className="header-right">
+          <button
+            className="header-download-btn"
+            onClick={() => handleNavigation('/app')}
+            title="Baixar o app para TV Box, celular ou Mac"
+            data-focusable="true"
+            data-focus-key="header-download"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Baixar app</span>
+          </button>
+
           {/* Onde a lista é publicada e onde se pede um canal que falta:
               o mesmo repositório e o mesmo grupo que o aplicativo aponta. */}
           <a

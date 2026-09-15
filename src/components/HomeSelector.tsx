@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDpad } from '../contexts/DpadContext';
 import './HomeSelector.css';
 
@@ -10,6 +11,7 @@ export function HomeSelector({ onSelect }: HomeSelectorProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<'tv' | 'movies' | null>(null);
   const { focusFirst, isUsingDpad } = useDpad();
+  const navigate = useNavigate();
   
   const tvCardRef = useRef<HTMLButtonElement>(null);
   const moviesCardRef = useRef<HTMLButtonElement>(null);
@@ -82,6 +84,21 @@ export function HomeSelector({ onSelect }: HomeSelectorProps) {
             <p>Entretenimento sem limites</p>
           </div>
         </div>
+
+        <button
+          className="home-download-btn"
+          onClick={() => navigate('/app')}
+          data-focusable="true"
+          data-focus-key="home-download"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          <span>Baixar app</span>
+          <small>TV Box · Celular · Mac</small>
+        </button>
       </header>
 
       {/* Seletor de modo */}

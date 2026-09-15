@@ -1,1 +1,7 @@
+# Atalhos curtos para digitar na TV (Downloader) ou mandar para alguém.
+# O GitHub redireciona /releases/latest/download para o release mais novo.
+/tvbox    https://github.com/gabrielsaimo/SaimoPlayer/releases/latest/download/SaimoTV.apk    302
+/celular  https://github.com/gabrielsaimo/SaimoPlayer/releases/latest/download/SaimoCell.apk  302
+/mac      https://github.com/gabrielsaimo/SaimoPlayer/releases/latest/download/SaimoTV.dmg    302
+/baixar   /#/app  302
 /*    /index.html   200

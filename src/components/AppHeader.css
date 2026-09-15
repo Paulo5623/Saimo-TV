@@ -522,3 +522,45 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Baixar app: com texto, para ninguém confundir com os ícones ao lado */
+.header-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, #8B5CF6, #EC4899);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.header-download-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.header-download-btn:hover,
+.header-download-btn:focus-visible {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .header-download-btn {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .header-download-btn span {
+    display: none;
+  }
+}
