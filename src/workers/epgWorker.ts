@@ -445,7 +445,11 @@ function parseProgramme(
     start,
     stop,
     poster,
-    episode: texto(elemento, 'episode-num') ?? undefined,
+    // A Pluto usa o campo para a data de estreia ("original-air-date"): não é
+    // episódio nenhum.
+    episode: (entre(elemento, '<episode-num', '</episode-num>') ?? '').includes('original-air-date')
+      ? undefined
+      : texto(elemento, 'episode-num') ?? undefined,
     year: texto(elemento, 'date')?.slice(0, 4),
     description: texto(elemento, 'desc') || undefined,
     cast,
