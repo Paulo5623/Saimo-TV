@@ -133,7 +133,7 @@
 /* Abas */
 .download-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -356,6 +356,12 @@
   left: 0;
   color: #a78bfa;
   font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .download-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 640px) {

@@ -15,7 +15,7 @@ import './AppDownload.css';
 const REPO = 'gabrielsaimo/SaimoPlayer';
 const LATEST = `https://github.com/${REPO}/releases/latest/download`;
 
-type AppId = 'tvbox' | 'cell' | 'mac';
+type AppId = 'tvbox' | 'cell' | 'mac' | 'windows';
 
 interface App {
   id: AppId;
@@ -61,6 +61,22 @@ const APPS: App[] = [
       { titulo: 'Abra o arquivo', texto: 'Toque na notificação de download concluído, ou abra o arquivo pela pasta Downloads.' },
       { titulo: 'Permita a instalação', texto: 'Se o Android pedir, ative “Permitir desta fonte” para o navegador e volte.' },
       { titulo: 'Pronto', texto: 'Instale e abra o Saimo TV. As próximas versões são oferecidas dentro do próprio app.' },
+    ],
+  },
+  {
+    id: 'windows',
+    aba: 'Windows',
+    titulo: 'Saimo TV para Windows',
+    subtitulo: 'PC e notebook com Windows 10 ou 11 (64 bits)',
+    arquivo: 'SaimoTV-Windows.zip',
+    atalho: '/windows',
+    botao: 'Baixar para Windows',
+    requisitos: ['Windows 10 ou 11, 64 bits', 'Cerca de 150 MB livres', 'Conexão com a internet'],
+    passos: [
+      { titulo: 'Baixe o arquivo', texto: 'Clique no botão acima. O navegador pode avisar que o arquivo é pouco baixado: mande manter.' },
+      { titulo: 'Descompacte a pasta', texto: 'Clique com o botão direito no arquivo e escolha “Extrair tudo”. Guarde a pasta onde quiser.' },
+      { titulo: 'Abra o Saimo TV', texto: 'Dentro da pasta, abra “Saimo TV.exe”. Os dois arquivos precisam ficar juntos.' },
+      { titulo: 'Se o Windows avisar', texto: 'Na tela azul do Windows Defender, clique em “Mais informações” e depois em “Executar assim mesmo”: o app não tem assinatura paga da Microsoft.' },
     ],
   },
   {
@@ -123,12 +139,13 @@ function detectar(): Deteccao {
       aviso: 'Ainda não existe app para iPhone e iPad. Assista por este site: no Safari, toque em Compartilhar › Adicionar à Tela de Início para abrir como app.' };
   }
   if (/Android/.test(ua)) return { recomendado: 'cell', aparelho, aviso: null };
+  if (/Windows/.test(ua)) return { recomendado: 'windows', aparelho, aviso: null };
   if (/Macintosh|Mac OS X/.test(ua)) {
     return { recomendado: 'mac', aparelho,
       aviso: macIntel() ? 'Este Mac parece ter processador Intel, e o app só roda em Mac com chip Apple. Neste caso, assista por este site.' : null };
   }
   return { recomendado: null, aparelho,
-    aviso: 'Não há app para Windows ou Linux. No computador, assista por este site mesmo.' };
+    aviso: 'Não há app para Linux. No computador, assista por este site mesmo.' };
 }
 
 interface Lancamento {
@@ -150,6 +167,9 @@ function Icone({ id }: { id: AppId }) {
   }
   if (id === 'cell') {
     return <svg {...comum}><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></svg>;
+  }
+  if (id === 'windows') {
+    return <svg {...comum}><path d="M3 6.5 10.5 5.2v6.3H3V6.5Zm0 11 7.5 1.3v-6.2H3v4.9Zm9.5 1.6L21 20.5v-8.7h-8.5v7.3ZM12.5 4.9 21 3.5v7.3h-8.5V4.9Z" /></svg>;
   }
   return <svg {...comum}><rect x="3" y="4" width="18" height="12" rx="1.5" /><path d="M1 20h22" /></svg>;
 }
@@ -254,6 +274,11 @@ export function AppDownload() {
           <p className="download-short">
             {app.id === 'tvbox' ? 'No Downloader, digite:' : 'Para baixar em outro aparelho, abra:'} <code>{linkCurto}</code>
           </p>
+          {app.id === 'windows' && (
+            <p className="download-short">
+              Aplicativo de verdade, não é o site numa janela: a lista, o guia e o vídeo rodam no próprio PC.
+            </p>
+          )}
 
           <div className="download-columns">
             <div>
