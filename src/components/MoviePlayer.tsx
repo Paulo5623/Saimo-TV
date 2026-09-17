@@ -79,9 +79,32 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
+  /*
+   * Endereço http não abre no site, e insistir só atrasa o aviso.
+   *
+   * O navegador recusa vídeo http dentro de uma página https, e o proxy, que
+   * serviria de ponte, leva 403 desses servidores: eles recusam a faixa de IPs
+   * da Cloudflare, onde o site mora. Foi medido em todas as fontes http do
+   * catálogo, nenhuma passa — então o caminho é a aba separada, e ela aparece
+   * de saída em vez de depois de um minuto de espera.
+   */
+  const soHttp = !!movie && movie.url.startsWith('http://');
+
   // Carregar vídeo quando movie mudar
   useEffect(() => {
     if (!movie || !videoRef.current) return;
+
+    if (soHttp) {
+      // O vídeo anterior precisa parar, senão os eventos dele limpam o aviso.
+      const anterior = videoRef.current;
+      anterior.pause();
+      anterior.removeAttribute('src');
+      anterior.load();
+      setIsLoading(false);
+      setIsProxyBlocked(true);
+      setError('Este vídeo só existe em http.');
+      return;
+    }
 
     const video = videoRef.current;
     const url = getProxiedUrl(movie.url);
@@ -282,7 +305,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       // A reference to the function is needed to remove it.
       // video.removeEventListener('loadedmetadata', onLoadedMetadata);
     };
-  }, [movie]);
+  }, [movie, soHttp]);
 
 
   // Calcula próximo episódio - DEVE vir antes do useEffect que o usa
@@ -845,9 +868,11 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 8v4M12 16h.01" />
               </svg>
-              <h3>Servidor bloqueando proxy</h3>
+              <h3>Este vídeo não abre aqui dentro do site</h3>
               <p style={{ color: '#aaa', fontSize: '0.9rem', margin: '8px 0 16px' }}>
-                O CDN deste vídeo bloqueia servidores proxy. Use um player externo para assistir.
+                {soHttp
+                  ? 'Ele usa um endereço http, que o navegador bloqueia dentro de uma página segura. Aberto numa página separada, ele funciona — ou use o aplicativo do Saimo TV.'
+                  : 'O servidor deste vídeo recusa o acesso pelo proxy do site. Abra numa página separada ou num player externo.'}
               </p>
               <div className="error-actions">
                 <button

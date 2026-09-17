@@ -120,10 +120,27 @@ export const VideoPlayer = memo(function VideoPlayer({
    * dentro — mas aberta numa aba própria ela toca, porque ali não há página
    * https em volta para bloquear.
    */
-  const fonteHttp = useMemo(
-    () => fontes.find((f) => f.source.url.startsWith('http://'))?.source.url ?? null,
-    [fontes],
+  const fonteHttp = useMemo(() => {
+    const atual = fontes[fontePos]?.source.url;
+    if (atual?.startsWith('http://')) return atual;
+    return fontes.find((f) => f.source.url.startsWith('http://'))?.source.url ?? null;
+  }, [fontes, fontePos]);
+
+  /*
+   * Fonte http não abre no site, ponto.
+   *
+   * O navegador recusa vídeo http dentro de uma página https, e o proxy, que
+   * existe justamente para contornar isso, leva 403 desses CDNs: eles recusam a
+   * faixa de IPs da Cloudflare, onde o site mora. Medido em todas as fontes
+   * http do catálogo — nenhuma passa. Então não vale gastar doze segundos de
+   * relógio em cada uma antes de dizer o que já se sabe: o caminho é a aba
+   * separada, e o aviso aparece de saída.
+   */
+  const tentavel = useCallback(
+    (a: Attempt | undefined) => !!a && !a.source.url.startsWith('http://'),
+    [],
   );
+  const semCaminhoNoSite = attempts.length > 0 && !attempts.some(tentavel);
 
   const abrirEmAbaSeparada = useCallback(() => {
     if (!fonteHttp) return;
@@ -160,9 +177,42 @@ export const VideoPlayer = memo(function VideoPlayer({
     if (!channel || !videoRef.current) return;
 
     const video = videoRef.current;
+
+    /*
+     * Encerra o que estava tocando antes de desistir do canal novo.
+     *
+     * Sem isto o canal anterior continua no mesmo elemento de vídeo, e os
+     * eventos dele — que limpam o erro assim que há imagem — apagavam o aviso
+     * um instante depois de ele aparecer.
+     */
+    const encerrar = () => {
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+      if (mpegtsRef.current) { mpegtsRef.current.destroy(); mpegtsRef.current = null; }
+      if (dashRef.current) { dashRef.current.destroy(); dashRef.current = null; }
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+
+    if (semCaminhoNoSite) {
+      encerrar();
+      setError('Canal só disponível por http.');
+      setIsLoading(false);
+      return;
+    }
     const attempt = attempts[sourceIndex];
     if (!attempt) {
+      encerrar();
       setError('Nenhuma fonte disponível para este canal.');
+      setIsLoading(false);
+      return;
+    }
+    // Fonte http: anda até a próxima que dá para abrir; não havendo, o aviso.
+    if (!tentavel(attempt)) {
+      const seguinte = attempts.findIndex((a, i) => i > sourceIndex && tentavel(a));
+      if (seguinte !== -1) { setSourceIndex(seguinte); return; }
+      encerrar();
+      setError('Esta fonte é http.');
       setIsLoading(false);
       return;
     }
@@ -216,9 +266,12 @@ export const VideoPlayer = memo(function VideoPlayer({
       // Falhou direto e existe a mesma fonte pelo proxy: da próxima vez começa
       // por ela, em vez de gastar o relógio de novo no mesmo tropeço.
       if (!viaProxy) marcarSemCors(source.url);
-      if (sourceIndex + 1 < attempts.length) {
+      // Pula o que não tem como abrir aqui: uma fonte http adiante não é uma
+      // chance a mais, é mais doze segundos de espera pelo mesmo aviso.
+      const seguinte = attempts.findIndex((a, i) => i > sourceIndex && tentavel(a));
+      if (seguinte !== -1) {
         console.warn(`[VideoPlayer] tentativa ${sourceIndex + 1}/${attempts.length} falhou (${motivo}), indo para a próxima`);
-        setSourceIndex((i) => i + 1);
+        setSourceIndex(seguinte);
         return;
       }
       telemetria.caiu('live', channel.name, urlsDasFontes.length);
@@ -325,7 +378,7 @@ export const VideoPlayer = memo(function VideoPlayer({
       pararRelogio();
       limpar();
     };
-  }, [channel, attempts, sourceIndex, reloadTick]);
+  }, [channel, attempts, sourceIndex, reloadTick, semCaminhoNoSite, tentavel]);
 
   // Volume sync
   useEffect(() => {
