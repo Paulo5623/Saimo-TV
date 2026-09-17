@@ -5,6 +5,7 @@ import { getProxiedUrl, needsProxy } from '../utils/proxyUrl';
 import castService, { type CastMethod, type CastState } from '../services/castService';
 import * as telemetria from '../services/telemetria';
 import './MoviePlayer.css';
+import './AvisoApp.css';
 
 // Interface para informações de série
 export interface SeriesEpisodeInfo {
@@ -44,6 +45,15 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProxyBlocked, setIsProxyBlocked] = useState(false);
+  /*
+   * Qual das fontes do título está em uso.
+   *
+   * O catálogo entrega várias — idiomas diferentes e servidores diferentes — e
+   * até aqui o player abria a primeira e pronto. Trocar exigia voltar à lista,
+   * que é justamente o que não dá para fazer quando a tela mostra um aviso no
+   * lugar do vídeo.
+   */
+  const [fonteIdx, setFonteIdx] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showExternalMenu, setShowExternalMenu] = useState(false);
@@ -88,7 +98,22 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
    * catálogo, nenhuma passa — então o caminho é a aba separada, e ela aparece
    * de saída em vez de depois de um minuto de espera.
    */
-  const soHttp = !!movie && movie.url.startsWith('http://');
+  const fontes = useMemo(() => {
+    if (!movie) return [];
+    return movie.sources?.length ? movie.sources : [{ url: movie.url }];
+  }, [movie]);
+
+  const urlAtiva = fontes[fonteIdx]?.url ?? movie?.url ?? '';
+
+  // Título novo recomeça pela fonte preferida, não pela que sobrou do anterior.
+  useEffect(() => { setFonteIdx(0); }, [movie?.id]);
+
+  const soHttp = !!urlAtiva && urlAtiva.startsWith('http://');
+
+  /** O servidor de uma fonte, que é o que distingue uma da outra na lista. */
+  const servidorDe = (endereco: string) => {
+    try { return new URL(endereco).hostname; } catch { return endereco.slice(0, 30); }
+  };
 
   // Carregar vídeo quando movie mudar
   useEffect(() => {
@@ -107,11 +132,11 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     }
 
     const video = videoRef.current;
-    const url = getProxiedUrl(movie.url);
+    const url = getProxiedUrl(urlAtiva);
     // Série agrupa pelo nome dela, e não episódio por episódio.
     const tituloMonitor = seriesInfo?.seriesName || movie.name;
-    telemetria.comecou('vod', tituloMonitor, movie.url, 1);
-    aberturaRef.current = { titulo: tituloMonitor, url: movie.url, desde: performance.now(), avisado: false, falhou: false };
+    telemetria.comecou('vod', tituloMonitor, urlAtiva, 1);
+    aberturaRef.current = { titulo: tituloMonitor, url: urlAtiva, desde: performance.now(), avisado: false, falhou: false };
     const avisarFalha = (detalhe: string) => {
       const a = aberturaRef.current;
       if (!a || a.falhou) return;
@@ -186,9 +211,9 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
         case 2: message = 'Erro de rede. Verifique sua conexão.'; break;
         case 3: message = 'Erro ao decodificar o vídeo.'; break;
         case 4:
-          if (needsProxy(movie.url)) {
+          if (needsProxy(urlAtiva)) {
             // Tenta verificar se é bloqueio do proxy (403 do servidor de CDN)
-            const proxyUrl = getProxiedUrl(movie.url);
+            const proxyUrl = getProxiedUrl(urlAtiva);
             fetch(proxyUrl, { method: 'HEAD' })
               .then(r => {
                 if (r.status === 403) {
@@ -207,7 +232,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
           break;
       }
 
-      console.log('[MoviePlayer Error]', { code, message, url: movie.url });
+      console.log('[MoviePlayer Error]', { code, message, url: urlAtiva });
       setError(message);
     };
 
@@ -305,7 +330,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       // A reference to the function is needed to remove it.
       // video.removeEventListener('loadedmetadata', onLoadedMetadata);
     };
-  }, [movie, soHttp]);
+  }, [movie, soHttp, urlAtiva]);
 
 
   // Calcula próximo episódio - DEVE vir antes do useEffect que o usa
@@ -365,8 +390,8 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
   // Função para abrir em nova aba
   const openInNewTab = useCallback(() => {
     if (!movie) return;
-    console.log('[openInNewTab] Abrindo:', movie.url);
-    window.open(movie.url, '_blank');
+    console.log('[openInNewTab] Abrindo:', urlAtiva);
+    window.open(urlAtiva, '_blank');
   }, [movie]);
 
   // Mostra botão de próximo episódio quando faltam 30 segundos
@@ -600,7 +625,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
 
     const result = await castService.cast(
       method,
-      movie.url,
+      urlAtiva,
       movie.name,
       videoRef.current || undefined,
       undefined // movie image
@@ -758,7 +783,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       // A more direct way would be to call a "load" function, but this is simpler with the current structure.
       const video = videoRef.current;
       if (hlsRef.current) {
-        hlsRef.current.loadSource(getProxiedUrl(movie.url));
+        hlsRef.current.loadSource(getProxiedUrl(urlAtiva));
       } else {
         video.load();
       }
@@ -772,24 +797,24 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     let url = '';
     switch (player) {
       case 'vlc':
-        url = `vlc://${movie.url}`;
+        url = `vlc://${urlAtiva}`;
         break;
       case 'mx':
-        url = `intent:${movie.url}#Intent;package=com.mxtech.videoplayer.ad;end`;
+        url = `intent:${urlAtiva}#Intent;package=com.mxtech.videoplayer.ad;end`;
         break;
       case 'iina':
-        url = `iina://open?url=${encodeURIComponent(movie.url)}`;
+        url = `iina://open?url=${encodeURIComponent(urlAtiva)}`;
         break;
       case 'potplayer':
-        url = `potplayer://${movie.url}`;
+        url = `potplayer://${urlAtiva}`;
         break;
       case 'copy':
-        navigator.clipboard.writeText(movie.url).then(() => {
+        navigator.clipboard.writeText(urlAtiva).then(() => {
           // Feedback visual poderia ser adicionado aqui
         });
         return;
       case 'newtab':
-        window.open(movie.url, '_blank');
+        window.open(urlAtiva, '_blank');
         return;
     }
     
@@ -861,34 +886,77 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
 
       {/* Error overlay */}
       {error && (
-        <div className="player-overlay error" onClick={(e) => e.stopPropagation()}>
+        <div className={`player-overlay error${isProxyBlocked ? ' aviso' : ''}`}
+             onClick={(e) => e.stopPropagation()}>
           {isProxyBlocked ? (
             <>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4M12 16h.01" />
+              <svg className="aviso-icone" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
               </svg>
-              <h3>Este vídeo não abre aqui dentro do site</h3>
-              <p style={{ color: '#aaa', fontSize: '0.9rem', margin: '8px 0 16px' }}>
+              <h3>Este vídeo toca numa página separada</h3>
+              <p className="aviso-texto">
                 {soHttp
-                  ? 'Ele usa um endereço http, que o navegador bloqueia dentro de uma página segura. Aberto numa página separada, ele funciona — ou use o aplicativo do Saimo TV.'
-                  : 'O servidor deste vídeo recusa o acesso pelo proxy do site. Abra numa página separada ou num player externo.'}
+                  ? 'O endereço dele é http, e o navegador não deixa um vídeo assim tocar dentro de uma página segura. Fora daqui ele abre normalmente.'
+                  : 'O servidor deste vídeo não aceita o caminho que o site usa. Fora daqui ele abre normalmente.'}
               </p>
+              <button
+                className="aviso-botao"
+                onClick={openInNewTab}
+                data-focusable="true"
+                data-nav-group="error-actions"
+                autoFocus
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Abrir numa página separada
+              </button>
+              <div className="aviso-app">
+                <div>
+                  <strong>No aplicativo, isso nem aparece.</strong>
+                  <span>
+                    No Saimo TV para Windows, Mac, Android e TV Box o vídeo abre direto, em
+                    qualquer fonte, sem essa volta — e os filmes em 4K tocam na maior resolução.
+                  </span>
+                </div>
+                <a href="#/app" className="aviso-app-botao" data-focusable="true">
+                  Baixar o aplicativo
+                </a>
+              </div>
+
+              {fontes.length > 1 && (
+                <div className="aviso-fontes">
+                  <p>Ou troque a fonte deste título:</p>
+                  <div className="aviso-fontes-lista">
+                    {fontes.map((fonte, indice) => (
+                      <button
+                        key={fonte.url}
+                        className={indice === fonteIdx ? 'atual' : undefined}
+                        onClick={() => setFonteIdx(indice)}
+                        data-focusable="true"
+                        data-nav-group="aviso-fontes"
+                        title={fonte.url}
+                      >
+                        <strong>{fonte.versao === 'leg' ? 'Legendado' : 'Dublado'}</strong>
+                        <span>{servidorDe(fonte.url)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="error-actions">
-                <button
-                  onClick={openInNewTab}
-                  data-focusable="true"
-                  data-nav-group="error-actions"
-                  autoFocus
-                >
-                  🌐 Abrir em nova aba
-                </button>
                 <button
                   onClick={() => openInExternalPlayer('copy')}
                   data-focusable="true"
                   data-nav-group="error-actions"
                 >
-                  📋 Copiar URL
+                  📋 Copiar endereço
                 </button>
               </div>
               <div className="external-players" style={{ marginTop: 0 }}>
@@ -1677,7 +1745,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 <p>Escolha um player para abrir o vídeo</p>
                 
                 <div className="cast-options external-players">
-                  {movie && castService.getExternalPlayerLinks(movie.url).map((player) => (
+                  {movie && castService.getExternalPlayerLinks(urlAtiva).map((player) => (
                     <button 
                       key={player.name}
                       className="cast-option" 

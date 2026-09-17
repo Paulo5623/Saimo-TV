@@ -9,7 +9,7 @@
 
 import * as telemetria from '../services/telemetria';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Movie } from '../types/movie';
+import type { Movie, MovieSource } from '../types/movie';
 import {
   LETRAS,
   buscar,
@@ -235,11 +235,21 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       }));
   }, [busca, buscaExtra, buscandoExtra, itens, aba]);
 
-  const tocar = useCallback((titulo: string, url: string, tipo: 'movie' | 'series') => {
+  /**
+   * Abre o título no player, levando todas as fontes.
+   *
+   * A primeira é a preferida — o catálogo já sai com a melhor resolução na
+   * frente. As outras vão junto para a pessoa poder trocar dentro do player,
+   * sem voltar à lista, inclusive quando nenhuma abre no site.
+   */
+  const tocar = useCallback((titulo: string, fontes: MovieSource[], tipo: 'movie' | 'series') => {
+    const primeira = fontes[0]?.url;
+    if (!primeira) return;
     onSelectMovie({
-      id: `${tipo}-${titulo}-${url}`.slice(0, 200),
+      id: `${tipo}-${titulo}-${primeira}`.slice(0, 200),
       name: titulo,
-      url,
+      url: primeira,
+      sources: fontes,
       category: tipo === 'series' ? 'Séries' : 'Filmes',
       type: tipo,
     });
@@ -251,9 +261,10 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     if (!item.serie) {
       const dados = item.filme
         ?? await buscarFilme({ titulo: item.titulo, serie: false, letra: item.letra, ano: '', nomeCompleto: item.titulo });
-      const primeira = dados && Object.values(dados.fontes).find((urls) => urls.length);
-      if (!primeira?.length) { setErro(`Sem fonte disponível para "${item.titulo}".`); return; }
-      tocar(item.titulo, primeira[0], 'movie');
+      const fontes: MovieSource[] = Object.entries(dados?.fontes ?? {})
+        .flatMap(([versao, urls]) => urls.map((url) => ({ url, versao })));
+      if (!fontes.length) { setErro(`Sem fonte disponível para "${item.titulo}".`); return; }
+      tocar(item.titulo, fontes, 'movie');
       return;
     }
 
@@ -407,7 +418,8 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
           <ul className="vod-episodios">
             {daTemporada.map((e) => (
               <li key={`${e.temporada}-${e.numero}-${e.versao}`}>
-                <button onClick={() => tocar(`${aberto.rotulo} — T${e.temporada}E${e.numero}`, e.urls[0], 'series')}>
+                <button onClick={() => tocar(`${aberto.rotulo} — T${e.temporada}E${e.numero}`,
+                                          e.urls.map((url) => ({ url, versao: e.versao })), 'series')}>
                   <span className="vod-ep-numero">T{e.temporada}E{e.numero}</span>
                   <span className="vod-ep-versao">{e.versao}</span>
                 </button>

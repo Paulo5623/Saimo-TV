@@ -9,6 +9,7 @@ import { makeNestedPathLoader } from '../utils/hlsLoader';
 import { playDash, type DashHandle } from '../services/dashPlayer';
 import * as telemetria from '../services/telemetria';
 import './VideoPlayer.css';
+import './AvisoApp.css';
 
 interface VideoPlayerProps {
   channel: Channel | null;
@@ -867,10 +868,10 @@ export const VideoPlayer = memo(function VideoPlayer({
                 <rect x="3" y="4" width="18" height="13" rx="2" />
                 <path d="M8 21h8M12 17v4M9 9l6 4M15 9l-6 4" />
               </svg>
-              <h2>Este canal não funciona aqui dentro do site</h2>
+              <h2>Este canal toca numa página separada</h2>
               <p className="http-explica">
-                Ele usa um endereço <strong>http</strong>, que o navegador bloqueia dentro de uma página
-                segura. <strong>Aberto numa página separada, ele funciona.</strong>
+                O endereço dele é <strong>http</strong>, e o navegador não deixa um vídeo assim tocar
+                dentro de uma página segura. <strong>Fora daqui ele abre normalmente.</strong>
               </p>
               <button
                 onClick={abrirEmAbaSeparada}
@@ -887,9 +888,20 @@ export const VideoPlayer = memo(function VideoPlayer({
                 Abrir {channel.name} numa página separada
               </button>
               <p className="http-dica">
-                Se o navegador baixar um arquivo em vez de tocar, abra esse arquivo no VLC — ou use o
-                aplicativo do Saimo TV, onde este canal toca normalmente.
+                Se o navegador baixar um arquivo em vez de tocar, abra esse arquivo no VLC.
               </p>
+              <div className="aviso-app">
+                <div>
+                  <strong>No aplicativo, este canal abre normalmente.</strong>
+                  <span>
+                    O Saimo TV para Windows, Mac, Android e TV Box fala direto com o servidor do
+                    canal, então não esbarra no bloqueio que existe aqui dentro do navegador.
+                  </span>
+                </div>
+                <a href="#/app" className="aviso-app-botao" data-focusable="true">
+                  Baixar o aplicativo
+                </a>
+              </div>
               <button onClick={retryLoad} className="retry-btn retry-btn-secundario">
                 Tentar de novo aqui
               </button>
