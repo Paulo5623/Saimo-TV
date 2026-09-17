@@ -15,6 +15,7 @@ import type { Program, ChannelEPG, CurrentProgram } from '../types/epg';
 import type { Channel } from '../types/channel';
 import { normalise } from '../utils/nomes';
 import type { Grade, PlutoDoCanal, WorkerProgramme } from '../workers/epgWorker';
+import { proxyBase } from '../utils/streamUrl';
 
 const CACHE_KEY = 'saimo-epg-v4';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -218,7 +219,7 @@ export async function fetchRealEPG(): Promise<boolean> {
     }
   };
 
-  worker.postMessage({ names: nomes, pluto, origin: window.location.origin });
+  worker.postMessage({ names: nomes, pluto, origin: proxyBase() });
   return true;
 }
 

@@ -46,6 +46,12 @@ export function needsProxy(source: ChannelSource | { url: string }): boolean {
 export function proxyBase(): string {
   const injetado = (globalThis as { __SAIMO_PROXY__?: string }).__SAIMO_PROXY__;
   if (injetado) return injetado;
+  // Parte dos CDNs recusa os IPs da Cloudflare, que é onde o site mora: para
+  // eles o proxy da própria origem responde 403 e o canal não abre de jeito
+  // nenhum. Apontar esta variável para um proxy hospedado fora da Cloudflare
+  // resolve sem mexer no resto — o contrato de `/api/proxy` é o mesmo.
+  const externo = import.meta.env.VITE_PROXY_BASE;
+  if (externo) return externo.replace(/\/$/, '');
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
