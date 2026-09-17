@@ -114,6 +114,22 @@ export const VideoPlayer = memo(function VideoPlayer({
     (melhor, f, i) => (f.indiceTentativa <= sourceIndex ? i : melhor), 0,
   );
 
+  /*
+   * A primeira fonte http do canal. Numa página https o navegador bloqueia
+   * vídeo http, e quando nem o proxy consegue buscá-la não há o que fazer aqui
+   * dentro — mas aberta numa aba própria ela toca, porque ali não há página
+   * https em volta para bloquear.
+   */
+  const fonteHttp = useMemo(
+    () => fontes.find((f) => f.source.url.startsWith('http://'))?.source.url ?? null,
+    [fontes],
+  );
+
+  const abrirEmAbaSeparada = useCallback(() => {
+    if (!fonteHttp) return;
+    window.open(fonteHttp, '_blank', 'noopener,noreferrer');
+  }, [fonteHttp]);
+
   const escolherFonte = useCallback((pos: number) => {
     const alvo = fontes[pos];
     if (!alvo) return;
@@ -791,7 +807,42 @@ export const VideoPlayer = memo(function VideoPlayer({
             </div>
           )}
 
-          {error && (
+          {error && fonteHttp && (
+            <div className="error-overlay http-overlay" role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="13" rx="2" />
+                <path d="M8 21h8M12 17v4M9 9l6 4M15 9l-6 4" />
+              </svg>
+              <h2>Este canal não funciona aqui dentro do site</h2>
+              <p className="http-explica">
+                Ele usa um endereço <strong>http</strong>, que o navegador bloqueia dentro de uma página
+                segura. <strong>Aberto numa página separada, ele funciona.</strong>
+              </p>
+              <button
+                onClick={abrirEmAbaSeparada}
+                className="http-open-btn"
+                data-focusable="true"
+                data-focus-key="btn-abrir-http"
+                autoFocus
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                Abrir {channel.name} numa página separada
+              </button>
+              <p className="http-dica">
+                Se o navegador baixar um arquivo em vez de tocar, abra esse arquivo no VLC — ou use o
+                aplicativo do Saimo TV, onde este canal toca normalmente.
+              </p>
+              <button onClick={retryLoad} className="retry-btn retry-btn-secundario">
+                Tentar de novo aqui
+              </button>
+            </div>
+          )}
+
+          {error && !fonteHttp && (
             <div className="error-overlay">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
