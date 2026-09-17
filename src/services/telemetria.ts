@@ -24,7 +24,29 @@ let iniciado = false;
 let intervaloMs = 300_000;
 let relogio: number | undefined;
 let tocando: Tocando | null = null;
-let contandoDesde = Date.now();
+/** Só conta tempo com o vídeo andando: pausado ou carregando não é assistir. */
+let acumuladoMs = 0;
+let rodandoDesde = 0;
+let confirmado = false;
+let pausado = false;
+let carregando = false;
+let qualidade: string | null = null;
+let travouDesde = 0;
+let ultimoPulo = 0;
+
+function rodandoMs() {
+  return acumuladoMs + (rodandoDesde ? Date.now() - rodandoDesde : 0);
+}
+
+function limparVideo() {
+  acumuladoMs = 0;
+  rodandoDesde = 0;
+  confirmado = false;
+  pausado = false;
+  carregando = false;
+  qualidade = null;
+  travouDesde = 0;
+}
 let errosEnviados = 0;
 
 function idDoAparelho(): string {
@@ -167,10 +189,10 @@ function enviar(rota: string, corpo: Record<string, unknown>, beacon = true): Pr
 }
 
 function baterAgora() {
-  const agora = Date.now();
-  const segundos = tocando ? Math.round((agora - contandoDesde) / 1000) : 0;
-  contandoDesde = agora;
-  void enviar('beat', { seconds: segundos, playing: tocando });
+  const segundos = tocando ? Math.round(rodandoMs() / 1000) : 0;
+  acumuladoMs = 0;
+  if (rodandoDesde) rodandoDesde = Date.now();
+  void enviar('beat', { seconds: segundos, playing: tocando ? { ...tocando, paused: pausado, quality: qualidade } : null });
 }
 
 function agendar() {
@@ -187,7 +209,7 @@ function evento(type: string, extra: Record<string, unknown> = {}) {
 export function iniciar() {
   if (iniciado || typeof window === 'undefined') return;
   iniciado = true;
-  aparelhoDesteNavegador().then((aparelho) => enviar('hello', { ...aparelho }, false)).then(async (r) => {
+  aparelhoDesteNavegador().then((aparelho) => enviar('hello', { ...aparelho, ...extras() }, false)).then(async (r) => {
     if (!r || !r.ok) return;
     try {
       const corpo = await r.json();
@@ -196,6 +218,15 @@ export function iniciar() {
     } catch { /* fica o padrão */ }
   });
   agendar();
+
+  // Eventos de mídia não sobem pela árvore, mas passam pela captura: um só
+  // ouvinte no documento acompanha qualquer player marcado com data-monitor.
+  for (const nome of ['playing', 'pause', 'play', 'waiting', 'stalled', 'seeking', 'seeked', 'resize', 'canplay', 'ended', 'emptied']) {
+    document.addEventListener(nome, (e) => {
+      const v = e.target;
+      if (v instanceof HTMLVideoElement && v.dataset.monitor) doVideo(v, e.type);
+    }, true);
+  }
 
   // Aba fechando: a última batida e o "parou", pelo beacon que sobrevive à saída.
   window.addEventListener('pagehide', () => {
@@ -220,15 +251,18 @@ export function iniciar() {
 /** `nova` é falso quando é só a próxima fonte do mesmo título depois de uma falha. */
 export function comecou(kind: Tipo, title: string, url: string, fonte: number, nova = true) {
   iniciar();
-  const agora = Date.now();
-  if (tocando && tocando.title !== title && agora - contandoDesde >= MINIMO_PARA_CONTAR_MS) baterAgora();
-  if (tocando?.title !== title) contandoDesde = agora;
+  if (tocando && tocando.title !== title && rodandoMs() >= MINIMO_PARA_CONTAR_MS) baterAgora();
+  if (tocando?.title !== title) limparVideo();
+  // Fonte nova do mesmo título: só volta a contar quando ela tocar.
+  if (rodandoDesde) { acumuladoMs += Date.now() - rodandoDesde; rodandoDesde = 0; }
+  confirmado = false;
+  travouDesde = 0;
   tocando = { kind, title, host: host(url) };
   if (nova) evento('play_start', { kind, title, host: host(url), source: fonte });
 }
 
 export function tocou(kind: Tipo, title: string, url: string, fonte: number, ms: number) {
-  evento('play_ok', { kind, title, host: host(url), source: fonte, detail: `${Math.round(ms)} ms` });
+  evento('play_ok', { kind, title, host: host(url), source: fonte, detail: `${Math.round(ms)} ms`, ms: Math.round(ms) });
 }
 
 export function falhou(kind: Tipo, title: string, url: string, fonte: number, detalhe: string) {
@@ -241,7 +275,70 @@ export function caiu(kind: Tipo, title: string, fontes: number) {
 
 export function parou() {
   if (!tocando) return;
-  if (Date.now() - contandoDesde >= MINIMO_PARA_CONTAR_MS) baterAgora();
+  if (rodandoMs() >= MINIMO_PARA_CONTAR_MS) baterAgora();
   tocando = null;
+  limparVideo();
   evento('play_stop');
+}
+
+function extras(): Record<string, unknown> {
+  const c = (navigator as unknown as { connection?: { type?: string; effectiveType?: string } }).connection;
+  const net = c?.type === 'wifi' ? 'wifi' : c?.type === 'ethernet' ? 'cabo' : c?.type === 'cellular' ? 'movel' : c?.type ? 'outra' : null;
+  const px = window.devicePixelRatio || 1;
+  return {
+    net,
+    screen: `${Math.round(screen.width * px)}x${Math.round(screen.height * px)}`,
+    lang: navigator.language || '',
+  };
+}
+
+/**
+ * Estado do player a cada evento de mídia. Pausar ou voltar bate na hora, para
+ * o painel não mostrar como assistindo quem pausou; carregar depois de já ter
+ * começado é travamento — menos logo depois de pular.
+ */
+function doVideo(v: HTMLVideoElement, tipo: string) {
+  if (!tocando) return;
+  const agora = Date.now();
+  if (tipo === 'seeking') { ultimoPulo = agora; travouDesde = 0; }
+  if (tipo === 'playing') confirmado = true;
+  if (tipo === 'waiting' || tipo === 'stalled' || tipo === 'seeking') carregando = true;
+  if (tipo === 'playing' || tipo === 'canplay' || tipo === 'seeked' || tipo === 'pause' || tipo === 'emptied') carregando = false;
+  if (v.videoHeight > 0) qualidade = `${v.videoHeight}p`;
+  const agoraPausado = v.paused;
+  const andando = confirmado && !agoraPausado && !carregando && !v.ended;
+  if (andando && !rodandoDesde) rodandoDesde = agora;
+  if (!andando && rodandoDesde) { acumuladoMs += agora - rodandoDesde; rodandoDesde = 0; }
+  if (agora - ultimoPulo < 3000) {
+    travouDesde = 0;
+  } else if (confirmado && carregando && !agoraPausado) {
+    if (!travouDesde) travouDesde = agora;
+  } else if (travouDesde) {
+    const ms = agora - travouDesde;
+    travouDesde = 0;
+    if (ms >= 500 && !agoraPausado) {
+      evento('stall', { kind: tocando.kind, title: tocando.title, host: tocando.host, ms, detail: `${ms} ms` });
+    }
+  }
+  if (confirmado && agoraPausado !== pausado) {
+    pausado = agoraPausado;
+    baterAgora();
+  }
+}
+
+const buscas: Partial<Record<Tipo, { texto: string; espera: number | undefined; achou: () => boolean }>> = {};
+
+/** Busca parada 2 s sem resultado: o painel mostra o que procuram e não acham. */
+export function buscou(kind: Tipo, texto: string, achou: () => boolean) {
+  const t = texto.trim();
+  const atual = buscas[kind];
+  if (atual && atual.texto === t) { atual.achou = achou; return; }
+  if (atual?.espera !== undefined) window.clearTimeout(atual.espera);
+  const nova: { texto: string; espera: number | undefined; achou: () => boolean } = { texto: t, espera: undefined, achou };
+  buscas[kind] = nova;
+  if (t.length < 3) return;
+  nova.espera = window.setTimeout(() => {
+    if (buscas[kind] !== nova || nova.achou()) return;
+    evento('search_miss', { kind, query: t });
+  }, 2000);
 }

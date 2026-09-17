@@ -2,6 +2,7 @@ import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import type { Channel } from '../types/channel';
 import { categoryOrder } from '../data/channels';
 import { ChannelCard } from './ChannelCard';
+import * as telemetria from '../services/telemetria';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -63,6 +64,11 @@ export const Sidebar = memo(function Sidebar({
 
     return result;
   }, [channels, favorites, filter, searchQuery]);
+
+  useEffect(() => {
+    const achou = filteredChannels.length > 0;
+    telemetria.buscou('live', filter === 'favorites' ? '' : searchQuery, () => achou);
+  }, [filteredChannels, filter, searchQuery]);
 
   // Agrupa canais por categoria mantendo a ordem definida
   const groupedChannels = useMemo(() => {

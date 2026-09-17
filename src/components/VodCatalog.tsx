@@ -7,6 +7,7 @@
  * procurar no acervo todo sem baixá-lo.
  */
 
+import * as telemetria from '../services/telemetria';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Movie } from '../types/movie';
 import {
@@ -179,7 +180,10 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     const tempo = window.setTimeout(() => {
       setCarregando(true);
       buscar(alvo)
-        .then(setBusca)
+        .then((achados) => {
+          setBusca(achados);
+          telemetria.buscou('vod', alvo, () => achados.length > 0);
+        })
         .catch(() => setBusca([]))
         .finally(() => setCarregando(false));
     }, 350);

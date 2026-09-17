@@ -799,6 +799,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       <div className="video-container" style={{ filter: `brightness(${brightness}%)` }}>
         <video
           ref={videoRef}
+          data-monitor="1"
           className={`movie-video aspect-${aspectRatio}`}
           playsInline
           onClick={(e) => e.stopPropagation()}

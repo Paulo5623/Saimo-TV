@@ -768,6 +768,7 @@ export const VideoPlayer = memo(function VideoPlayer({
 
           <video
             ref={videoRef}
+            data-monitor="1"
             className={`video-element ${isMirrored ? 'mirrored' : ''}`}
             playsInline
             onClick={handleVideoClick}
