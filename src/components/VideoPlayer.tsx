@@ -229,6 +229,32 @@ export const VideoPlayer = memo(function VideoPlayer({
     tentativaRef.current = { titulo: channel.name, url: source.url, fonte: posicaoDaFonte, desde: performance.now(), avisado: false };
 
     let cancelado = false;
+
+    /*
+     * Prova de vida da fonte, do jeito que quem assiste vê: o relógio do vídeo
+     * andando. Enquanto ele anda há imagem na tela, e não importa quantos erros
+     * o player tenha cuspido no caminho — CDN devolvendo 5xx solto, segmento
+     * perdido, wi-fi do box oscilando. Era isso que faltava: o player contava
+     * erros e trocava de fonte com o canal vivo, e quem estava assistindo
+     * levava um corte a cada tropeço da rede.
+     */
+    let tocou = false;
+    let ultimoTempo = -1;
+    let ultimoAvanco = performance.now();
+    /** Como pedir a esta fonte que volte sozinha, sem trocar de origem. */
+    let retomar: (() => void) | null = null;
+
+    const marcarAvanco = () => {
+      const t = video.currentTime;
+      if (t > ultimoTempo + 0.2) {
+        ultimoTempo = t;
+        ultimoAvanco = performance.now();
+        tocou = true;
+        recoveryAttemptsRef.current = 0;
+      }
+    };
+    video.addEventListener('timeupdate', marcarAvanco);
+
     /*
      * Relógio de segurança da tentativa.
      *
@@ -256,7 +282,7 @@ export const VideoPlayer = memo(function VideoPlayer({
     limpar();
 
     /** Desce para a fonte seguinte; só vira erro quando acabaram todas. */
-    const falhar = (motivo: string) => {
+    const descer = (motivo: string) => {
       if (cancelado) return;
       pararRelogio();
       // A tentativa direta que cai para a mesma fonte pelo proxy é bastidor,
@@ -279,7 +305,45 @@ export const VideoPlayer = memo(function VideoPlayer({
       setError('Erro ao carregar o canal. Tente novamente.');
       setIsLoading(false);
     };
+
+    /*
+     * Quanto tempo de tela congelada conta como fonte caída.
+     *
+     * Vinte e cinco segundos é muito de propósito. Quem está assistindo
+     * prefere um engasgo longo, que quase sempre volta sozinho, a ser jogado
+     * para outra origem — que recomeça do zero, com outro áudio e outro ponto
+     * da programação, e às vezes nem é melhor que a de onde saiu.
+     */
+    const SEM_IMAGEM_MS = 25_000;
+
+    /**
+     * Um erro só derruba a fonte quando ela parou de entregar imagem.
+     *
+     * Enquanto o relógio do vídeo anda, o erro foi um tropeço: o player desta
+     * fonte é chamado de volta e ninguém na sala percebe. Só o silêncio longo
+     * é queda.
+     */
+    const falhar = (motivo: string) => {
+      if (cancelado) return;
+      if (tocou && performance.now() - ultimoAvanco < SEM_IMAGEM_MS) {
+        console.warn(`[VideoPlayer] ${motivo} — o vídeo ainda anda, recuperando sem trocar de fonte`);
+        retomar?.();
+        return;
+      }
+      descer(motivo);
+    };
+
     relogio = window.setTimeout(() => falhar('sem imagem em 12 s'), 12_000);
+
+    // Depois que a fonte tocou, quem decide se ela caiu é a tela parada, não a
+    // contagem de erros: um canal vivo com rede ruim dispara erro sem parar.
+    const vigia = window.setInterval(() => {
+      if (cancelado || !tocou) return;
+      if (video.paused) { ultimoAvanco = performance.now(); return; }
+      if (performance.now() - ultimoAvanco > SEM_IMAGEM_MS) {
+        descer('imagem parada por 25 s');
+      }
+    }, 2_000);
 
     const tocar = () => {
       if (cancelado || !videoRef.current) return;
@@ -312,6 +376,7 @@ export const VideoPlayer = memo(function VideoPlayer({
       );
       player.attachMediaElement(video);
       player.load();
+      retomar = () => { try { player.load(); } catch { /* o vigia decide depois */ } };
       player.on(mpegts.Events.ERROR, (type, details) => {
         if (type === mpegts.ErrorTypes.NETWORK_ERROR) {
           recoveryAttemptsRef.current++;
@@ -336,6 +401,7 @@ export const VideoPlayer = memo(function VideoPlayer({
       });
       hls.loadSource(url);
       hls.attachMedia(video);
+      retomar = () => { try { hls.startLoad(); } catch { /* o vigia decide depois */ } };
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
@@ -377,6 +443,8 @@ export const VideoPlayer = memo(function VideoPlayer({
     return () => {
       cancelado = true;
       pararRelogio();
+      window.clearInterval(vigia);
+      video.removeEventListener('timeupdate', marcarAvanco);
       limpar();
     };
   }, [channel, attempts, sourceIndex, reloadTick, semCaminhoNoSite, tentavel]);

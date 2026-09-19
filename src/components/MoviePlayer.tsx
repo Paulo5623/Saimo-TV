@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, memo, useMemo } from 'react';
 import Hls from 'hls.js';
 import type { Movie } from '../types/movie';
 import { getProxiedUrl, needsProxy } from '../utils/proxyUrl';
+import { isHls } from '../utils/streamUrl';
 import castService, { type CastMethod, type CastState } from '../services/castService';
 import * as telemetria from '../services/telemetria';
 import './MoviePlayer.css';
@@ -67,6 +68,12 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<'auto' | '16:9' | '4:3' | '21:9'>('auto');
   const [videoResolution, setVideoResolution] = useState<string | null>(null);
+  const [qualityLevels, setQualityLevels] = useState<Array<{ id: number; label: string }>>([]);
+  const [selectedQuality, setSelectedQuality] = useState(-1);
+  const [audioTracks, setAudioTracks] = useState<Array<{ id: number; label: string }>>([]);
+  const [selectedAudio, setSelectedAudio] = useState(-1);
+  const [subtitleTracks, setSubtitleTracks] = useState<Array<{ id: number; label: string }>>([]);
+  const [selectedSubtitle, setSelectedSubtitle] = useState(-1);
   
   // Cast states
   const [castState, setCastState] = useState<CastState>({ isConnected: false, deviceName: null, method: null });
@@ -153,6 +160,12 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     setDuration(0);
     setIsPlaying(false);
     setShowNextEpisodeButton(false);
+    setQualityLevels([]);
+    setSelectedQuality(-1);
+    setAudioTracks([]);
+    setSelectedAudio(-1);
+    setSubtitleTracks([]);
+    setSelectedSubtitle(-1);
 
     // Função para salvar progresso do vídeo anterior (se houver)
     const savePreviousProgress = () => {
@@ -237,7 +250,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     };
 
     // Lógica para carregar HLS ou vídeo nativo
-    if (url.includes('.m3u8') && Hls.isSupported()) {
+    if (isHls(urlAtiva) && Hls.isSupported()) {
       const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
@@ -248,11 +261,26 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setQualityLevels(hls.levels.map((level, id) => ({
+          id,
+          label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)} kbps`,
+        })));
+        setAudioTracks(hls.audioTracks.map((track, id) => ({
+          id,
+          label: track.name || track.lang || `Áudio ${id + 1}`,
+        })));
+        setSubtitleTracks(hls.subtitleTracks.map((track, id) => ({
+          id,
+          label: track.name || track.lang || `Legenda ${id + 1}`,
+        })));
         setDuration(video.duration);
         setIsLoading(false);
         loadProgress();
         handleAutoplay();
       });
+
+      hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, (_event, data) => setSelectedAudio(data.id));
+      hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH, (_event, data) => setSelectedSubtitle(data.id));
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
@@ -1508,6 +1536,64 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 </button>
                 {showSettingsMenu && (
                   <div className="settings-dropdown" onClick={(e) => e.stopPropagation()}>
+                    <div className="settings-section">
+                      <label>Qualidade</label>
+                      <select
+                        value={selectedQuality}
+                        onChange={(e) => {
+                          const level = Number(e.target.value);
+                          setSelectedQuality(level);
+                          if (hlsRef.current) hlsRef.current.currentLevel = level;
+                        }}
+                        data-focusable="true"
+                        data-nav-group="settings-menu"
+                      >
+                        <option value={-1}>Automática</option>
+                        {qualityLevels.map((level) => (
+                          <option key={level.id} value={level.id}>{level.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {audioTracks.length > 0 && (
+                      <div className="settings-section">
+                        <label>Idioma do áudio</label>
+                        <select
+                          value={selectedAudio}
+                          onChange={(e) => {
+                            const track = Number(e.target.value);
+                            setSelectedAudio(track);
+                            if (hlsRef.current) hlsRef.current.audioTrack = track;
+                          }}
+                          data-focusable="true"
+                          data-nav-group="settings-menu"
+                        >
+                          {audioTracks.map((track) => (
+                            <option key={track.id} value={track.id}>{track.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="settings-section">
+                      <label>Legendas</label>
+                      <select
+                        value={selectedSubtitle}
+                        onChange={(e) => {
+                          const track = Number(e.target.value);
+                          setSelectedSubtitle(track);
+                          if (hlsRef.current) {
+                            hlsRef.current.subtitleDisplay = track >= 0;
+                            hlsRef.current.subtitleTrack = track;
+                          }
+                        }}
+                        data-focusable="true"
+                        data-nav-group="settings-menu"
+                      >
+                        <option value={-1}>Desligadas</option>
+                        {subtitleTracks.map((track) => (
+                          <option key={track.id} value={track.id}>{track.label}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="settings-section">
                       <label>Velocidade</label>
                       <select 

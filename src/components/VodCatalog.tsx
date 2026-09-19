@@ -9,6 +9,7 @@
 
 import * as telemetria from '../services/telemetria';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Movie, MovieSource } from '../types/movie';
 import {
   LETRAS,
@@ -67,6 +68,11 @@ function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/\p{Mn}+/gu, '').toLowerCase();
 }
 
+function nomeDaFonte(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ''); }
+  catch { return 'Servidor alternativo'; }
+}
+
 /** Capa buscada só quando o cartão aparece: são vinte na tela, não trinta mil. */
 function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -119,8 +125,12 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   const [buscaExtra, setBuscaExtra] = useState<Item[] | null>(null);
   const [aberto, setAberto] = useState<Item | null>(null);
   const [episodiosAbertos, setEpisodiosAbertos] = useState<Episodio[] | null>(null);
+  const [fontesAbertas, setFontesAbertas] = useState<MovieSource[] | null>(null);
+  const [modalCarregando, setModalCarregando] = useState(false);
+  const [erroModal, setErroModal] = useState<string | null>(null);
   const [temporada, setTemporada] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
+  const abertura = useRef(0);
   /*
    * A letra A traz três mil e quinhentos filmes, e três mil e quinhentos
    * cartões de uma vez travam a rolagem antes de a primeira capa aparecer. A
@@ -192,7 +202,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       .finally(() => { if (vivo) setCarregando(false); });
 
     return () => { vivo = false; };
-  }, [aba, letra, buscaAtiva]);
+  }, [aba, letra, buscaAtiva, buscandoColecao]);
 
   // Busca no acervo inteiro, com folga para quem ainda está digitando. Fica
   // de fora quando a aba é o 18+ — o índice geral nunca traz título
@@ -283,37 +293,73 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     });
   }, [onSelectMovie]);
 
-  /** Abre um cartão: filme toca direto, série mostra os episódios. */
+  const fecharModal = useCallback(() => {
+    abertura.current += 1;
+    setAberto(null);
+    setEpisodiosAbertos(null);
+    setFontesAbertas(null);
+    setErroModal(null);
+    setModalCarregando(false);
+  }, []);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const aoTeclado = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') fecharModal();
+    };
+    window.addEventListener('keydown', aoTeclado);
+    return () => {
+      document.body.style.overflow = overflow;
+      window.removeEventListener('keydown', aoTeclado);
+    };
+  }, [aberto, fecharModal]);
+
+  /** Todo cartão abre suas opções no modal, sem mover a página para o topo. */
   const abrir = useCallback(async (item: Item) => {
     setErro(null);
-    if (!item.serie) {
-      const dados = item.filme
-        ?? await buscarFilme({ titulo: item.titulo, serie: false, letra: item.letra, ano: '', nomeCompleto: item.titulo });
-      const fontes: MovieSource[] = Object.entries(dados?.fontes ?? {})
-        .flatMap(([versao, urls]) => urls.map((url) => ({ url, versao })));
-      if (!fontes.length) { setErro(`Sem fonte disponível para "${item.titulo}".`); return; }
-      tocar(item.titulo, fontes, 'movie');
-      return;
-    }
-
-    if (item.colecao) {
-      setAberto(item);
-      setEpisodiosAbertos(item.colecao.episodios);
-      setTemporada(item.colecao.episodios[0]?.temporada ?? 1);
-      return;
-    }
-
-    const ano = item.dados?.ano ?? item.chave.split(':')[2] ?? '';
-    const dados = item.dados
-      ?? await buscarSerie({ titulo: item.titulo, serie: true, letra: item.letra, ano, nomeCompleto: item.rotulo });
-    if (!dados) { setErro(`Não foi possível abrir "${item.rotulo}".`); return; }
-
-    setAberto({ ...item, dados });
+    setErroModal(null);
+    setAberto(item);
     setEpisodiosAbertos(null);
-    const lista = await episodios(item.letra, dados);
-    setEpisodiosAbertos(lista);
-    setTemporada(lista[0]?.temporada ?? 1);
-  }, [tocar]);
+    setFontesAbertas(null);
+    setModalCarregando(true);
+    const tentativa = ++abertura.current;
+    try {
+      if (!item.serie) {
+        const dados = item.filme
+          ?? await buscarFilme({ titulo: item.titulo, serie: false, letra: item.letra, ano: '', nomeCompleto: item.titulo });
+        const fontes: MovieSource[] = Object.entries(dados?.fontes ?? {})
+          .flatMap(([versao, urls]) => urls.map((url) => ({ url, versao })));
+        if (tentativa !== abertura.current) return;
+        setFontesAbertas(fontes);
+        if (!fontes.length) setErroModal(`Sem fonte disponível para "${item.titulo}".`);
+        return;
+      }
+
+      if (item.colecao) {
+        setEpisodiosAbertos(item.colecao.episodios);
+        setTemporada(item.colecao.episodios[0]?.temporada ?? 1);
+        return;
+      }
+
+      const ano = item.dados?.ano ?? item.chave.split(':')[2] ?? '';
+      const dados = item.dados
+        ?? await buscarSerie({ titulo: item.titulo, serie: true, letra: item.letra, ano, nomeCompleto: item.rotulo });
+      if (tentativa !== abertura.current) return;
+      if (!dados) { setErroModal(`Não foi possível abrir "${item.rotulo}".`); return; }
+      setAberto({ ...item, dados });
+      const lista = await episodios(item.letra, dados);
+      if (tentativa !== abertura.current) return;
+      setEpisodiosAbertos(lista);
+      setTemporada(lista[0]?.temporada ?? 1);
+      if (!lista.length) setErroModal('Nenhum episódio encontrado.');
+    } catch {
+      if (tentativa === abertura.current) setErroModal(`Não foi possível abrir "${item.rotulo}".`);
+    } finally {
+      if (tentativa === abertura.current) setModalCarregando(false);
+    }
+  }, []);
 
   const temporadas = useMemo(() => {
     if (!episodiosAbertos) return [];
@@ -345,6 +391,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   );
 
   return (
+    <>
     <div className="vod-catalog">
       <header className="vod-header">
         <button className="vod-voltar" onClick={onBack} aria-label="Voltar">←</button>
@@ -444,41 +491,6 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
 
       {erro && <p className="vod-erro">{erro}</p>}
 
-      {aberto && (
-        <section className="vod-serie">
-          <div className="vod-serie-topo">
-            <h2>{aberto.rotulo}</h2>
-            <button onClick={() => setAberto(null)}>Fechar</button>
-          </div>
-          {episodiosAbertos === null && <p className="vod-aviso">Carregando episódios…</p>}
-          {episodiosAbertos?.length === 0 && <p className="vod-aviso">Nenhum episódio encontrado.</p>}
-          {temporadas.length > 1 && (
-            <div className="vod-temporadas">
-              {temporadas.map((t) => (
-                <button
-                  key={t}
-                  className={t === temporada ? 'ativa' : ''}
-                  onClick={() => setTemporada(t)}
-                >
-                  T{t}
-                </button>
-              ))}
-            </div>
-          )}
-          <ul className="vod-episodios">
-            {daTemporada.map((e) => (
-              <li key={`${e.temporada}-${e.numero}-${e.versao}`}>
-                <button onClick={() => tocar(`${aberto.rotulo} — T${e.temporada}E${e.numero}`,
-                                          e.urls.map((url) => ({ url, versao: e.versao })), 'series')}>
-                  <span className="vod-ep-numero">T{e.temporada}E{e.numero}</span>
-                  <span className="vod-ep-versao">{e.versao}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {carregando && <p className="vod-aviso">Carregando…</p>}
 
       <div className="vod-grade">
@@ -496,5 +508,84 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         <p className="vod-aviso">Nada por aqui. Tente outra letra ou outra busca.</p>
       )}
     </div>
+    {aberto && createPortal(
+      <div className="vod-modal-fundo" onMouseDown={fecharModal}>
+        <section
+          className="vod-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vod-modal-titulo"
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <div className="vod-serie-topo">
+            <div>
+              <span className="vod-modal-tipo">
+                {aberto.serie ? (aberto.colecao ? (aba === 'animes' ? 'Anime' : 'Dorama') : 'Série') : 'Filme'}
+              </span>
+              <h2 id="vod-modal-titulo">{aberto.rotulo}</h2>
+            </div>
+            <button className="vod-modal-fechar" onClick={fecharModal} aria-label="Fechar">×</button>
+          </div>
+
+          {modalCarregando && <p className="vod-aviso">Carregando opções…</p>}
+          {erroModal && <p className="vod-erro">{erroModal}</p>}
+
+          {!aberto.serie && fontesAbertas && fontesAbertas.length > 0 && (
+            <div className="vod-fontes">
+              <p>Escolha a versão e a fonte:</p>
+              {fontesAbertas.map((fonte, indice) => (
+                <button
+                  key={`${fonte.url}-${indice}`}
+                  onClick={() => tocar(
+                    aberto.titulo,
+                    [fonte, ...fontesAbertas.filter((_, outro) => outro !== indice)],
+                    'movie',
+                  )}
+                >
+                  <span>
+                    <strong>{fonte.versao === 'leg' ? 'Legendado' : 'Dublado'}</strong>
+                    <small>{nomeDaFonte(fonte.url)}</small>
+                  </span>
+                  <em>Fonte {indice + 1}</em>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {aberto.serie && (
+            <>
+              {temporadas.length > 1 && (
+                <div className="vod-temporadas">
+                  {temporadas.map((t) => (
+                    <button
+                      key={t}
+                      className={t === temporada ? 'ativa' : ''}
+                      onClick={() => setTemporada(t)}
+                    >
+                      T{t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ul className="vod-episodios">
+                {daTemporada.map((e) => (
+                  <li key={`${e.temporada}-${e.numero}-${e.versao}`}>
+                    <button onClick={() => tocar(`${aberto.rotulo} — T${e.temporada}E${e.numero}`,
+                                              e.urls.map((url) => ({ url, versao: e.versao })), 'series')}>
+                      <span className="vod-ep-numero">T{e.temporada}E{e.numero}</span>
+                      <span className="vod-ep-versao">
+                        {e.versao === 'leg' ? 'Legendado' : 'Dublado'} · {e.urls.length} fonte{e.urls.length === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      </div>,
+      document.body,
+    )}
+    </>
   );
 }

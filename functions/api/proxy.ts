@@ -39,6 +39,7 @@ function copyStreamingHeaders(from: Headers, to: Headers): void {
 function isM3u8(url: string, contentType: string): boolean {
   return (
     url.includes('.m3u8') ||
+    url.toLowerCase().split('?')[0].endsWith('.txt') ||
     contentType.includes('application/vnd.apple.mpegurl') ||
     contentType.includes('application/x-mpegurl') ||
     contentType.includes('audio/mpegurl')
@@ -360,8 +361,20 @@ export const onRequest = async ({ request }: { request: Request }): Promise<Resp
     }
 
     const contentType = finalResponse.headers.get('content-type') || '';
-    const manifestHls = isM3u8(currentUrl, contentType);
+    let manifestHls = isM3u8(currentUrl, contentType);
     const manifestDash = isMpd(currentUrl, contentType);
+    let hlsText: string | null = null;
+
+    // Alguns masters apontam para sub-playlists em URLs opacas (`/m3/token`),
+    // também servidas como text/plain. Só olhar extensão/MIME deixaria os
+    // segmentos dessas listas fora do proxy e o CORS voltaria a bloqueá-los.
+    if (!manifestHls && contentType.toLowerCase().includes('text/plain')) {
+      const candidato = await finalResponse.clone().text();
+      if (candidato.trimStart().startsWith('#EXTM3U')) {
+        manifestHls = true;
+        hlsText = candidato;
+      }
+    }
 
     /*
      * Vídeo comum já liberado para qualquer origem sai daqui por redirecionamento:
@@ -399,10 +412,15 @@ export const onRequest = async ({ request }: { request: Request }): Promise<Resp
     }
 
     const proxyOrigin = reqUrl.origin;
+    // Mesmo sem um Referer declarado no catálogo, filhos de um master devem
+    // carregar a origem do próprio master. Alguns CDNs de segmentos recusam
+    // `Origin` calculado a partir do host do segmento e só aceitam a página que
+    // publicou a playlist (embedplayer2, neste caso).
+    const childReferer = referer ?? `${new URL(currentUrl).origin}/`;
 
     if (manifestHls) {
-      const text = await finalResponse.text();
-      return new Response(rewriteM3u8(text, currentUrl, proxyOrigin, referer, ua), {
+      const text = hlsText ?? await finalResponse.text();
+      return new Response(rewriteM3u8(text, currentUrl, proxyOrigin, childReferer, ua), {
         status: finalResponse.status,
         headers: {
           'Content-Type': 'application/vnd.apple.mpegurl',

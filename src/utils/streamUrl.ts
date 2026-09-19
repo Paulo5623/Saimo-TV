@@ -17,7 +17,8 @@ export function isDash(url: string): boolean {
 }
 
 export function isHls(url: string): boolean {
-  return url.toLowerCase().includes('.m3u8');
+  const path = url.toLowerCase().split('?')[0];
+  return path.includes('.m3u8') || path.endsWith('.txt');
 }
 
 /** Fluxo MPEG-TS cru, servido sem playlist. */
@@ -31,7 +32,10 @@ export function isMpegTs(url: string): boolean {
  * uma tentativa direta antes do proxy.
  */
 export function needsProxy(source: ChannelSource | { url: string }): boolean {
-  return source.url.startsWith('http://');
+  // Masters `.txt` costumam vir como text/plain e sem CORS (como os de
+  // embedplayer2). Começar pelo proxy evita uma tentativa direta que o browser
+  // obrigatoriamente bloquearia e garante que os filhos também sejam reescritos.
+  return source.url.startsWith('http://') || source.url.split('?')[0].toLowerCase().endsWith('.txt');
 }
 
 /**

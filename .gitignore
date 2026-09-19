@@ -26,3 +26,7 @@ dist-ssr
 .wrangler
 
 .claude/
+
+# Build do app desktop (Tauri)
+desktop/src-tauri/target
+desktop/src-tauri/gen/schemas

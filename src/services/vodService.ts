@@ -299,7 +299,8 @@ export async function serie(achado: Achado): Promise<Serie | null> {
 }
 
 /** Lê `vod/redeflix/links-animes.txt` ou `links-doramas.txt`. */
-export function colecao(tipo: ColecaoVod): Promise<SerieColecao[]> {
+export async function colecao(tipo: ColecaoVod): Promise<SerieColecao[]> {
+  if (!bases.length) await indice();
   const existente = colecoes.get(tipo);
   if (existente) return existente;
 
@@ -336,7 +337,9 @@ export function colecao(tipo: ColecaoVod): Promise<SerieColecao[]> {
         }
         if (!atual) continue;
         const [temporada, numero, versao, urlsTexto] = linhaBruta.split('\t');
-        const urls = (urlsTexto ?? '').split(',').map((url) => url.trim()).filter(Boolean);
+        const urls = (urlsTexto ?? '').split(',')
+          .map((url) => montar(url.trim()))
+          .filter(Boolean);
         if (!urls.length) continue;
         atual.episodios.push({
           temporada: Number(temporada) || 0,

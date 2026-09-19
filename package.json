@@ -1,15 +1,22 @@
 {
   "name": "tv-saimo",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.6.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop": "tauri dev --config desktop/src-tauri/tauri.conf.json",
+    "desktop:build": "tauri build --config desktop/src-tauri/tauri.conf.json",
+    "desktop:dev:web": "vite --config desktop/vite.config.ts",
+    "desktop:build:web": "vite build --config desktop/vite.config.ts"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-process": "^2",
+    "@tauri-apps/plugin-updater": "^2",
     "hls.js": "^1.6.15",
     "mpegts.js": "^1.8.0",
     "react": "^19.2.4",
@@ -19,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
