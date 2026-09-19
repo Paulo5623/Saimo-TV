@@ -44,6 +44,23 @@ export interface Episodio {
   urls: string[];
 }
 
+export type ColecaoVod = 'animes' | 'doramas';
+
+/**
+ * Série de uma coleção editorial publicada pelo gerador RedeFlix.
+ *
+ * Ao contrário do catálogo geral, estas listas são pequenas e já carregam os
+ * episódios no mesmo arquivo. O `tmdbId` vem da lista oficial de IDs e evita
+ * misturar títulos homônimos quando a capa/metadados forem enriquecidos.
+ */
+export interface SerieColecao {
+  titulo: string;
+  ano: string;
+  tmdbId: string;
+  episodios: Episodio[];
+  nomeCompleto: string;
+}
+
 export interface Gaveta {
   letra: string;
   filmes: number;
@@ -63,6 +80,7 @@ export interface Achado {
 let bases: string[] = [];
 const arquivos = new Map<string, Promise<string | null>>();
 let indiceBusca: string | null = null;
+const colecoes = new Map<ColecaoVod, Promise<SerieColecao[]>>();
 
 function gaveta(letra: string): string {
   return letra === '#' ? '%23' : letra;
@@ -278,6 +296,64 @@ export async function serie(achado: Achado): Promise<Serie | null> {
   return lista.find(
     (s) => s.titulo === achado.titulo && (!achado.ano.trim() || s.ano === achado.ano),
   ) ?? null;
+}
+
+/** Lê `vod/redeflix/links-animes.txt` ou `links-doramas.txt`. */
+export function colecao(tipo: ColecaoVod): Promise<SerieColecao[]> {
+  const existente = colecoes.get(tipo);
+  if (existente) return existente;
+
+  // Estas duas listas são atualizadas semanalmente. O raw do GitHub aceita
+  // cache agressivo e chegava a mostrar por horas a classificação anterior
+  // (anime dentro de Doramas) mesmo depois do arquivo já ter sido corrigido.
+  const promessa = fetch(
+    `${BASE}redeflix/links-${tipo}.txt?v=${Math.floor(Date.now() / 60_000)}`,
+    { cache: 'no-store' },
+  )
+    .then((r) => {
+      if (!r.ok) throw new Error(`Coleção ${tipo} indisponível (${r.status})`);
+      return r.text();
+    })
+    .then((texto) => {
+      const out: SerieColecao[] = [];
+      let atual: SerieColecao | null = null;
+
+      for (const linhaBruta of texto.split('\n')) {
+        const linha = linhaBruta.trim();
+        if (!linha) continue;
+        if (linha.startsWith('@')) {
+          const [titulo = '', ano = '', tmdbId = ''] = linha.slice(1).split('\t');
+          if (!titulo.trim()) { atual = null; continue; }
+          atual = {
+            titulo: titulo.trim(),
+            ano: ano.trim(),
+            tmdbId: tmdbId.trim(),
+            episodios: [],
+            nomeCompleto: ano.trim() ? `${titulo.trim()} (${ano.trim()})` : titulo.trim(),
+          };
+          out.push(atual);
+          continue;
+        }
+        if (!atual) continue;
+        const [temporada, numero, versao, urlsTexto] = linhaBruta.split('\t');
+        const urls = (urlsTexto ?? '').split(',').map((url) => url.trim()).filter(Boolean);
+        if (!urls.length) continue;
+        atual.episodios.push({
+          temporada: Number(temporada) || 0,
+          numero: Number(numero) || 0,
+          versao: versao?.trim() || 'dub',
+          urls,
+        });
+      }
+      return out.filter((serie) => serie.episodios.length > 0);
+    })
+    .catch((erro) => {
+      colecoes.delete(tipo);
+      throw erro;
+    });
+
+  colecoes.set(tipo, promessa);
+  return promessa;
 }
 
 // ============================================================

@@ -14,6 +14,7 @@ import {
   LETRAS,
   buscar,
   capa,
+  colecao,
   episodios,
   filme as buscarFilme,
   filmes as listarFilmes,
@@ -25,10 +26,11 @@ import {
   type Filme,
   type Gaveta,
   type Serie,
+  type SerieColecao,
 } from '../services/vodService';
 import './VodCatalog.css';
 
-type Aba = 'filmes' | 'series' | 'extra';
+type Aba = 'filmes' | 'series' | 'animes' | 'doramas' | 'extra';
 
 /** Quantos cartões entram por vez ao rolar. */
 const PAGINA = 120;
@@ -50,6 +52,15 @@ interface Item {
   letra: string;
   filme?: Filme;
   dados?: Serie;
+  colecao?: SerieColecao;
+}
+
+const eColecao = (aba: Aba): aba is 'animes' | 'doramas' =>
+  aba === 'animes' || aba === 'doramas';
+
+function letraDe(texto: string): string {
+  const primeira = normalizar(texto).trim().charAt(0).toUpperCase();
+  return /^[A-Z]$/.test(primeira) ? primeira : '#';
 }
 
 function normalizar(texto: string): string {
@@ -136,16 +147,28 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   // Termo em busca dentro do próprio 18+ — não usa o índice geral (ver
   // abaixo), então tem letra própria de "buscando".
   const buscandoExtra = aba === 'extra' && termo.trim().length >= 2;
-  const buscaAtiva = aba === 'extra' ? buscandoExtra : !!busca;
+  const buscandoColecao = eColecao(aba) && termo.trim().length >= 2;
+  const buscaAtiva = aba === 'extra' ? buscandoExtra : eColecao(aba) ? buscandoColecao : !!busca;
 
   // Lista da letra escolhida. A busca, quando ativa, manda na tela.
   useEffect(() => {
-    if (buscaAtiva) return;
+    if (buscaAtiva && !eColecao(aba)) return;
     let vivo = true;
     setCarregando(true);
     setErro(null);
 
-    const trabalho = aba === 'series'
+    const trabalho = eColecao(aba)
+      ? colecao(aba).then((lista) => lista
+        .filter((s) => buscandoColecao || letraDe(s.titulo) === letra)
+        .map<Item>((s) => ({
+          chave: `${aba}:${s.tmdbId}:${s.titulo}`,
+          titulo: s.titulo,
+          rotulo: s.nomeCompleto,
+          serie: true,
+          letra,
+          colecao: s,
+        })))
+      : aba === 'series'
       ? listarSeries(letra).then((lista) => lista.map<Item>((s) => ({
         chave: `s:${s.titulo}:${s.ano}`,
         titulo: s.titulo,
@@ -176,7 +199,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   // reservado (ver gerar_vod.py), então essa chamada não acharia nada lá.
   useEffect(() => {
     const alvo = termo.trim();
-    if (alvo.length < 2 || aba === 'extra') { setBusca(null); return; }
+    if (alvo.length < 2 || aba === 'extra' || eColecao(aba)) { setBusca(null); return; }
     const tempo = window.setTimeout(() => {
       setCarregando(true);
       buscar(alvo)
@@ -223,6 +246,11 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
 
   const resultados = useMemo<Item[]>(() => {
     if (aba === 'extra') return buscandoExtra ? buscaExtra ?? [] : itens;
+    if (eColecao(aba)) {
+      if (!buscandoColecao) return itens;
+      const alvo = normalizar(termo.trim());
+      return itens.filter((item) => normalizar(item.rotulo).includes(alvo));
+    }
     if (!busca) return itens;
     return busca
       .filter((a) => (aba === 'series' ? a.serie : !a.serie))
@@ -233,7 +261,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         serie: a.serie,
         letra: a.letra,
       }));
-  }, [busca, buscaExtra, buscandoExtra, itens, aba]);
+  }, [busca, buscaExtra, buscandoExtra, buscandoColecao, itens, aba, termo]);
 
   /**
    * Abre o título no player, levando todas as fontes.
@@ -265,6 +293,13 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         .flatMap(([versao, urls]) => urls.map((url) => ({ url, versao })));
       if (!fontes.length) { setErro(`Sem fonte disponível para "${item.titulo}".`); return; }
       tocar(item.titulo, fontes, 'movie');
+      return;
+    }
+
+    if (item.colecao) {
+      setAberto(item);
+      setEpisodiosAbertos(item.colecao.episodios);
+      setTemporada(item.colecao.episodios[0]?.temporada ?? 1);
       return;
     }
 
@@ -326,6 +361,18 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
           >
             Séries
           </button>
+          <button
+            className={aba === 'animes' ? 'ativa' : ''}
+            onClick={() => { setAba('animes'); setAberto(null); setTermo(''); setLetra('A'); }}
+          >
+            Animes
+          </button>
+          <button
+            className={aba === 'doramas' ? 'ativa' : ''}
+            onClick={() => { setAba('doramas'); setAberto(null); setTermo(''); setLetra('A'); }}
+          >
+            Doramas
+          </button>
           {isAdultUnlocked && (
             <button
               className={aba === 'extra' ? 'ativa' : ''}
@@ -338,7 +385,9 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         <input
           className="vod-busca"
           type="search"
-          placeholder={aba === 'extra' ? 'Buscar no 18+…' : 'Buscar em todo o acervo…'}
+          placeholder={aba === 'extra' ? 'Buscar no 18+…'
+            : eColecao(aba) ? `Buscar em ${aba}…`
+            : 'Buscar em todo o acervo…'}
           value={termo}
           onChange={(e) => setTermo(e.target.value)}
         />
@@ -374,14 +423,15 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         <nav className="vod-letras">
           {LETRAS.map((l) => {
             const g = contagem.get(l);
-            const quantos = aba === 'series' ? g?.series ?? 0
+            const quantos = eColecao(aba) ? undefined
+              : aba === 'series' ? g?.series ?? 0
               : aba === 'extra' ? g?.reservados ?? 0
               : g?.filmes ?? 0;
             return (
               <button
                 key={l}
                 className={l === letra ? 'ativa' : ''}
-                disabled={gavetas.length > 0 && quantos === 0}
+                disabled={!eColecao(aba) && gavetas.length > 0 && quantos === 0}
                 onClick={() => { setLetra(l); setAberto(null); }}
                 title={quantos ? `${quantos} títulos` : undefined}
               >
