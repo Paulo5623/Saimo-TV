@@ -814,15 +814,60 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isFullscreen, onBack, skipTime, togglePiP, toggleCast, skipIntro, togglePlay, seek, toggleFullscreen]);
 
-  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const video = videoRef.current;
-    const progress = progressRef.current;
-    if (!video || !progress) return;
+  /*
+   * Arrastar e clicar na barra.
+   *
+   * Clicar só pausava: o container do player inteiro tem um `onClick` que
+   * alterna play/pause, e o clique da barra subia até ele. O `stopPropagation`
+   * abaixo é o que separa "mexer no controle" de "tocar no vídeo".
+   *
+   * E arrastar não existia — havia só um `onClick`. Com ponteiro capturado, o
+   * dedo ou o mouse pode sair da barra durante o arraste sem soltar o controle,
+   * que é como toda barra se comporta e o que a pessoa tenta fazer primeiro.
+   */
+  const [arrastando, setArrastando] = useState(false);
 
+  const posicaoDoEvento = useCallback((clientX: number) => {
+    const progress = progressRef.current;
+    if (!progress) return null;
     const rect = progress.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    video.currentTime = percent * video.duration;
+    if (rect.width <= 0) return null;
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
   }, []);
+
+  const irPara = useCallback((clientX: number) => {
+    const video = videoRef.current;
+    const fracao = posicaoDoEvento(clientX);
+    if (!video || fracao == null) return;
+    const total = video.duration;
+    if (!Number.isFinite(total) || total <= 0) return;
+    video.currentTime = fracao * total;
+    setCurrentTime(video.currentTime);
+  }, [posicaoDoEvento]);
+
+  const aoPegarBarra = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setArrastando(true);
+    irPara(e.clientX);
+  }, [irPara]);
+
+  const aoArrastarBarra = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!arrastando) return;
+    e.stopPropagation();
+    irPara(e.clientX);
+  }, [arrastando, irPara]);
+
+  const aoSoltarBarra = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!arrastando) return;
+    e.stopPropagation();
+    irPara(e.clientX);
+    setArrastando(false);
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, [arrastando, irPara]);
 
   const handleRetry = useCallback(() => {
     if (videoRef.current && movie) {
@@ -1358,9 +1403,22 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
         )}
 
         {/* Bottom bar */}
-        <div className="controls-bottom">
+        <div className="controls-bottom" onClick={(e) => e.stopPropagation()}>
           {/* Progress bar */}
-          <div className="progress-container" ref={progressRef} onClick={handleProgressClick}>
+          <div
+            className="progress-container"
+            ref={progressRef}
+            role="slider"
+            aria-label="Progresso"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration)}
+            aria-valuenow={Math.round(currentTime)}
+            onPointerDown={aoPegarBarra}
+            onPointerMove={aoArrastarBarra}
+            onPointerUp={aoSoltarBarra}
+            onPointerCancel={aoSoltarBarra}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="progress-buffered" style={{ width: `${buffered}%` }} />
             <div className="progress-played" style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
             <div 
