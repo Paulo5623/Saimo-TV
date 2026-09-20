@@ -128,7 +128,7 @@ function Fileiras({
 }: {
   filas: FilaDestaque[];
   termo: string;
-  aoAbrir: (item: Item) => void;
+  aoAbrir: (destaque: ItemDestaque) => void;
 }) {
   const procurado = normalizar(termo.trim());
   const visiveis = useMemo(() => {
@@ -140,14 +140,6 @@ function Fileiras({
       }))
       .filter((fila) => fila.itens.length > 0);
   }, [filas, procurado]);
-
-  const comoItem = (destaque: ItemDestaque): Item => ({
-    chave: `${destaque.tipo}:${destaque.titulo}`,
-    titulo: destaque.titulo,
-    rotulo: destaque.titulo,
-    serie: destaque.tipo !== 'f',
-    letra: destaque.letra,
-  });
 
   if (!filas.length) return <p className="vod-aviso">Carregando…</p>;
   if (!visiveis.length) return <p className="vod-aviso">Nada por aqui. Tente outra busca.</p>;
@@ -162,7 +154,7 @@ function Fileiras({
               <button
                 key={`${fila.titulo}:${destaque.titulo}`}
                 className="vod-card"
-                onClick={() => aoAbrir(comoItem(destaque))}
+                onClick={() => aoAbrir(destaque)}
               >
                 <div className="vod-poster">
                   {destaque.capa
@@ -433,6 +425,55 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     }
   }, []);
 
+  /**
+   * Abre um destaque da tela inicial.
+   *
+   * Filme e série passam pelo caminho de sempre. Anime e dorama, não: eles não
+   * moram no acervo por letra, e sim nas coleções, que já vêm com os episódios
+   * dentro. Sem buscar o título ali antes, o modal tentava achá-lo entre as
+   * séries comuns — com a letra vazia, ainda por cima — e só sabia dizer que
+   * não deu para abrir.
+   */
+  const abrirDestaque = useCallback(async (destaque: ItemDestaque) => {
+    const serie = destaque.tipo !== 'f';
+    const base: Item = {
+      chave: `${destaque.tipo}:${destaque.titulo}`,
+      titulo: destaque.titulo,
+      rotulo: destaque.titulo,
+      serie,
+      letra: destaque.letra,
+    };
+
+    if (destaque.tipo !== 'a' && destaque.tipo !== 'd') {
+      await abrir(base);
+      return;
+    }
+
+    const tipo = destaque.tipo === 'a' ? 'animes' : 'doramas';
+    setAberto(base);
+    setModalCarregando(true);
+    setErroModal(null);
+    try {
+      const lista = await colecao(tipo);
+      const achada = lista.find(
+        (s) => normalizar(s.titulo) === normalizar(destaque.titulo));
+      if (!achada) {
+        setErroModal(`Não foi possível abrir "${destaque.titulo}".`);
+        return;
+      }
+      await abrir({
+        ...base,
+        chave: `${tipo}:${achada.tmdbId}:${achada.titulo}`,
+        rotulo: achada.titulo,
+        colecao: achada,
+      });
+    } catch {
+      setErroModal(`Não foi possível abrir "${destaque.titulo}".`);
+    } finally {
+      setModalCarregando(false);
+    }
+  }, [abrir]);
+
   const temporadas = useMemo(() => {
     if (!episodiosAbertos) return [];
     return [...new Set(episodiosAbertos.map((e) => e.temporada))].sort((a, b) => a - b);
@@ -572,7 +613,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       {aba !== 'inicio' && carregando && <p className="vod-aviso">Carregando…</p>}
 
       {aba === 'inicio' ? (
-        <Fileiras filas={filas} termo={termo} aoAbrir={abrir} />
+        <Fileiras filas={filas} termo={termo} aoAbrir={abrirDestaque} />
       ) : (
       <div className="vod-grade">
         {resultados.slice(0, visiveis).map((item) => (
@@ -602,7 +643,11 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
           <div className="vod-serie-topo">
             <div>
               <span className="vod-modal-tipo">
-                {aberto.serie ? (aberto.colecao ? (aba === 'animes' ? 'Anime' : 'Dorama') : 'Série') : 'Filme'}
+                {aberto.serie
+                  ? (aberto.colecao
+                    ? (aberto.chave.startsWith('animes:') ? 'Anime' : 'Dorama')
+                    : 'Série')
+                  : 'Filme'}
               </span>
               <h2 id="vod-modal-titulo">{aberto.rotulo}</h2>
             </div>
