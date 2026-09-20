@@ -446,3 +446,49 @@ export async function destaques(): Promise<FilaDestaque[]> {
   filasEmMemoria = filas;
   return filas;
 }
+
+/**
+ * O gênero de cada título: Ação, Terror, Animação, Comédia.
+ *
+ * O catálogo não tem gênero — as listas de origem trazem nome e endereço, nada
+ * mais. Perguntar ao TMDB por trinta e quatro mil títulos, no navegador de cada
+ * pessoa, é uma tela que nunca abre. A pergunta é feita uma vez no repositório
+ * (`gerar_generos.py`) e chega aqui pronta, no mesmo arquivo que os aplicativos
+ * leem.
+ */
+export interface Generos {
+  /** "f|Nome" ou "s|Nome" -> os gêneros dele. */
+  mapa: Map<string, string[]>;
+  /** Todos os que aparecem no acervo, em ordem. */
+  todos: string[];
+}
+
+let generosEmMemoria: Generos | null = null;
+
+export async function generos(): Promise<Generos> {
+  if (generosEmMemoria) return generosEmMemoria;
+  const texto = await arquivo('generos.txt');
+  const mapa = new Map<string, string[]>();
+  const vistos = new Set<string>();
+  for (const linha of (texto ?? '').split('\n')) {
+    if (!linha || linha.startsWith('#')) continue;
+    const campos = linha.split('\t');
+    if (campos.length < 3 || !campos[2]) continue;
+    const lista = campos[2].split(',').map((g) => g.trim()).filter(Boolean);
+    if (!lista.length) continue;
+    mapa.set(`${campos[0]}|${campos[1]}`, lista);
+    lista.forEach((g) => vistos.add(g));
+  }
+  generosEmMemoria = { mapa, todos: [...vistos].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+  return generosEmMemoria;
+}
+
+/** O título sem o ano final, que é como a lista de gêneros o guarda. */
+export function semAno(titulo: string): string {
+  return titulo.replace(/\s*\(\d{4}\)\s*$/, '').trim();
+}
+
+export function temGenero(g: Generos, titulo: string, serie: boolean, genero: string): boolean {
+  if (!genero) return true;
+  return (g.mapa.get(`${serie ? 's' : 'f'}|${semAno(titulo)}`) ?? []).includes(genero);
+}

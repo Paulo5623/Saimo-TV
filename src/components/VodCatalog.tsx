@@ -18,6 +18,8 @@ import {
   colecao,
   destaques,
   episodios,
+  generos as lerGeneros,
+  temGenero,
   filme as buscarFilme,
   filmes as listarFilmes,
   indice,
@@ -26,6 +28,7 @@ import {
   type Achado,
   type Episodio,
   type FilaDestaque,
+  type Generos,
   type ItemDestaque,
   type Filme,
   type Gaveta,
@@ -124,22 +127,26 @@ function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
  * ao TMDB: o `src` do pôster já veio no arquivo.
  */
 function Fileiras({
-  filas, termo, aoAbrir,
+  filas, termo, genero, generos, aoAbrir,
 }: {
   filas: FilaDestaque[];
   termo: string;
+  genero: string;
+  generos: Generos | null;
   aoAbrir: (destaque: ItemDestaque) => void;
 }) {
   const procurado = normalizar(termo.trim());
   const visiveis = useMemo(() => {
-    if (!procurado) return filas;
+    if (!procurado && !genero) return filas;
     return filas
       .map((fila) => ({
         ...fila,
-        itens: fila.itens.filter((item) => normalizar(item.titulo).includes(procurado)),
+        itens: fila.itens.filter((item) =>
+          (!procurado || normalizar(item.titulo).includes(procurado))
+          && (!genero || !generos || temGenero(generos, item.titulo, item.tipo !== 'f', genero))),
       }))
       .filter((fila) => fila.itens.length > 0);
-  }, [filas, procurado]);
+  }, [filas, procurado, genero, generos]);
 
   if (!filas.length) return <p className="vod-aviso">Carregando…</p>;
   if (!visiveis.length) return <p className="vod-aviso">Nada por aqui. Tente outra busca.</p>;
@@ -174,6 +181,8 @@ function Fileiras({
 export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalogProps) {
   const [aba, setAba] = useState<Aba>('inicio');
   const [filas, setFilas] = useState<FilaDestaque[]>([]);
+  const [generos, setGeneros] = useState<Generos | null>(null);
+  const [genero, setGenero] = useState('');
 
   // Se travar de novo com a aba extra aberta, ela não pode continuar visível.
   useEffect(() => {
@@ -210,6 +219,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   useEffect(() => {
     indice().then(setGavetas).catch(() => setGavetas([]));
     destaques().then(setFilas).catch(() => setFilas([]));
+    lerGeneros().then(setGeneros).catch(() => setGeneros(null));
   }, []);
 
   const contagem = useMemo(() => {
@@ -336,6 +346,12 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         letra: a.letra,
       }));
   }, [busca, buscaExtra, buscandoExtra, buscandoColecao, itens, aba, termo]);
+
+  /// O gênero escolhido peneira o que já estava na tela.
+  const resultadosPorGenero = useMemo<Item[]>(() => {
+    if (!genero || !generos) return resultados;
+    return resultados.filter((item) => temGenero(generos, item.titulo, item.serie, genero));
+  }, [resultados, generos, genero]);
 
   const fecharModal = useCallback(() => {
     abertura.current += 1;
@@ -586,6 +602,24 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         </a>
       </header>
 
+      {/* O catálogo não tem gênero: ele vem de um arquivo publicado à parte.
+          Por isso a régua só existe depois que esse arquivo chega — oferecer um
+          filtro que devolve vazio é pior que não oferecer. */}
+      {generos && generos.todos.length > 0 && (
+        <nav className="vod-generos">
+          <button className={genero === '' ? 'ativa' : ''} onClick={() => setGenero('')}>Todos</button>
+          {generos.todos.map((g) => (
+            <button
+              key={g}
+              className={genero === g ? 'ativa' : ''}
+              onClick={() => setGenero(genero === g ? '' : g)}
+            >
+              {g}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {aba !== 'inicio' && !buscaAtiva && (
         <nav className="vod-letras">
           {LETRAS.map((l) => {
@@ -614,10 +648,10 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       {aba !== 'inicio' && carregando && <p className="vod-aviso">Carregando…</p>}
 
       {aba === 'inicio' ? (
-        <Fileiras filas={filas} termo={termo} aoAbrir={abrirDestaque} />
+        <Fileiras filas={filas} termo={termo} genero={genero} generos={generos} aoAbrir={abrirDestaque} />
       ) : (
       <div className="vod-grade">
-        {resultados.slice(0, visiveis).map((item) => (
+        {resultadosPorGenero.slice(0, visiveis).map((item) => (
           <button key={item.chave} className="vod-card" onClick={() => abrir(item)}>
             <Poster titulo={item.rotulo} serie={item.serie} />
             <span className="vod-card-titulo">{item.rotulo}</span>
@@ -628,7 +662,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
 
       <div ref={sentinela} className="vod-sentinela" aria-hidden="true" />
 
-      {aba !== 'inicio' && !carregando && resultados.length === 0 && (
+      {aba !== 'inicio' && !carregando && resultadosPorGenero.length === 0 && (
         <p className="vod-aviso">Nada por aqui. Tente outra letra ou outra busca.</p>
       )}
     </div>

@@ -407,3 +407,27 @@
   flex: 0 0 150px;
   scroll-snap-align: start;
 }
+
+/* A régua de gêneros, logo abaixo das abas. Rola sozinha no eixo horizontal:
+   são vinte e poucos e não cabem numa linha em telemóvel. */
+.vod-generos {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 8px 0 10px;
+  scrollbar-width: thin;
+}
+
+.vod-generos button {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.vod-generos button:hover { background: rgba(255, 255, 255, 0.16); }
+.vod-generos button.ativa { background: var(--accent, #e50914); color: #fff; }
