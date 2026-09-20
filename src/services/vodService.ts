@@ -380,3 +380,69 @@ export function capa(titulo: string, serieBool: boolean): Promise<string | null>
   capasEmMemoria.set(chave, promessa);
   return promessa;
 }
+
+/**
+ * As fileiras da tela inicial, prontas para desenhar.
+ *
+ * O acervo tem trinta e quatro mil filmes e nenhuma data de entrada, então não
+ * há como o site descobrir sozinho o que é novidade — e perguntar a capa de
+ * cada título ao TMDB, a cada abertura, seria uma tela que demora para
+ * aparecer. A conta é feita no repositório (`gerar_destaques.py`) e chega aqui
+ * pronta: seis fileiras, cento e vinte títulos, sete quilobytes, com o caminho
+ * do pôster junto.
+ *
+ * O formato de cada item é o mesmo de um resultado de busca — tipo, título,
+ * letra, ano —, então abrir um destaque passa pelo caminho que já abre um
+ * título procurado. É o mesmo arquivo que a TV Box, o Mac e o Windows leem.
+ */
+export interface ItemDestaque {
+  /** 'f' filme, 's' série, 'a' anime, 'd' dorama. */
+  tipo: string;
+  titulo: string;
+  letra: string;
+  ano: string;
+  /** Endereço inteiro da capa, ou vazio quando o gerador não achou uma. */
+  capa: string;
+}
+
+export interface FilaDestaque {
+  titulo: string;
+  itens: ItemDestaque[];
+}
+
+let filasEmMemoria: FilaDestaque[] | null = null;
+
+export async function destaques(): Promise<FilaDestaque[]> {
+  if (filasEmMemoria) return filasEmMemoria;
+  const texto = await arquivo('destaques.txt');
+  if (!texto) return [];
+
+  const filas: FilaDestaque[] = [];
+  let titulo: string | null = null;
+  let itens: ItemDestaque[] = [];
+  let base = '';
+
+  const fechar = () => {
+    if (titulo && itens.length) filas.push({ titulo, itens });
+    itens = [];
+  };
+
+  for (const linha of texto.split('\n')) {
+    if (!linha.trim() || linha.startsWith('#')) continue;
+    if (linha.startsWith('capa:')) { base = linha.slice('capa:'.length).trim(); continue; }
+    if (linha.startsWith('fila\t')) { fechar(); titulo = linha.slice('fila\t'.length).trim(); continue; }
+    const campos = linha.split('\t');
+    if (campos.length < 3) continue;
+    const poster = campos[4] ?? '';
+    itens.push({
+      tipo: campos[0]?.charAt(0) || 'f',
+      titulo: campos[1],
+      letra: campos[2],
+      ano: campos[3] ?? '',
+      capa: poster ? base + poster : '',
+    });
+  }
+  fechar();
+  filasEmMemoria = filas;
+  return filas;
+}

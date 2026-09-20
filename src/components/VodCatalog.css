@@ -376,3 +376,34 @@
     animation: none;
   }
 }
+
+/* Fileiras da tela inicial.
+   A pista rola sozinha no eixo horizontal e encaixa nos cartões, então o
+   arrasto no telemóvel pára sempre com um cartão inteiro à vista em vez de
+   metade de um. */
+.vod-fileiras {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding-bottom: 24px;
+}
+
+.vod-fileira h3 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.vod-fileira-pista {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.vod-fileira-pista .vod-card {
+  flex: 0 0 150px;
+  scroll-snap-align: start;
+}

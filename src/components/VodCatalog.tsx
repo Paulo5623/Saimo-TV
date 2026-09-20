@@ -16,6 +16,7 @@ import {
   buscar,
   capa,
   colecao,
+  destaques,
   episodios,
   filme as buscarFilme,
   filmes as listarFilmes,
@@ -24,6 +25,8 @@ import {
   series as listarSeries,
   type Achado,
   type Episodio,
+  type FilaDestaque,
+  type ItemDestaque,
   type Filme,
   type Gaveta,
   type Serie,
@@ -31,7 +34,7 @@ import {
 } from '../services/vodService';
 import './VodCatalog.css';
 
-type Aba = 'filmes' | 'series' | 'animes' | 'doramas' | 'extra';
+type Aba = 'inicio' | 'filmes' | 'series' | 'animes' | 'doramas' | 'extra';
 
 /** Quantos cartões entram por vez ao rolar. */
 const PAGINA = 120;
@@ -109,8 +112,76 @@ function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
   );
 }
 
+/**
+ * A primeira tela do acervo: fileiras de capa que correm para o lado.
+ *
+ * Uma grade alfabética serve para achar o que já se sabe que existe; não serve
+ * para descobrir. As fileiras mostram o que há, e a busca continua no mesmo
+ * lugar, filtrando dentro delas — a fileira que fica sem nada sai da tela, em
+ * vez de virar um título com o vazio embaixo.
+ *
+ * As capas chegam prontas do destaques.txt, então esta tela não pergunta nada
+ * ao TMDB: o `src` do pôster já veio no arquivo.
+ */
+function Fileiras({
+  filas, termo, aoAbrir,
+}: {
+  filas: FilaDestaque[];
+  termo: string;
+  aoAbrir: (item: Item) => void;
+}) {
+  const procurado = normalizar(termo.trim());
+  const visiveis = useMemo(() => {
+    if (!procurado) return filas;
+    return filas
+      .map((fila) => ({
+        ...fila,
+        itens: fila.itens.filter((item) => normalizar(item.titulo).includes(procurado)),
+      }))
+      .filter((fila) => fila.itens.length > 0);
+  }, [filas, procurado]);
+
+  const comoItem = (destaque: ItemDestaque): Item => ({
+    chave: `${destaque.tipo}:${destaque.titulo}`,
+    titulo: destaque.titulo,
+    rotulo: destaque.titulo,
+    serie: destaque.tipo !== 'f',
+    letra: destaque.letra,
+  });
+
+  if (!filas.length) return <p className="vod-aviso">Carregando…</p>;
+  if (!visiveis.length) return <p className="vod-aviso">Nada por aqui. Tente outra busca.</p>;
+
+  return (
+    <div className="vod-fileiras">
+      {visiveis.map((fila) => (
+        <section className="vod-fileira" key={fila.titulo}>
+          <h3>{fila.titulo}</h3>
+          <div className="vod-fileira-pista">
+            {fila.itens.map((destaque) => (
+              <button
+                key={`${fila.titulo}:${destaque.titulo}`}
+                className="vod-card"
+                onClick={() => aoAbrir(comoItem(destaque))}
+              >
+                <div className="vod-poster">
+                  {destaque.capa
+                    ? <img src={destaque.capa} alt={destaque.titulo} loading="lazy" />
+                    : <div className="vod-poster-vazio">{destaque.titulo.slice(0, 2).toUpperCase()}</div>}
+                </div>
+                <span className="vod-card-titulo">{destaque.titulo}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalogProps) {
-  const [aba, setAba] = useState<Aba>('filmes');
+  const [aba, setAba] = useState<Aba>('inicio');
+  const [filas, setFilas] = useState<FilaDestaque[]>([]);
 
   // Se travar de novo com a aba extra aberta, ela não pode continuar visível.
   useEffect(() => {
@@ -146,6 +217,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
 
   useEffect(() => {
     indice().then(setGavetas).catch(() => setGavetas([]));
+    destaques().then(setFilas).catch(() => setFilas([]));
   }, []);
 
   const contagem = useMemo(() => {
@@ -397,6 +469,12 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         <button className="vod-voltar" onClick={onBack} aria-label="Voltar">←</button>
         <div className="vod-abas">
           <button
+            className={aba === 'inicio' ? 'ativa' : ''}
+            onClick={() => { setAba('inicio'); setAberto(null); setTermo(''); }}
+          >
+            Início
+          </button>
+          <button
             className={aba === 'filmes' ? 'ativa' : ''}
             onClick={() => { setAba('filmes'); setAberto(null); }}
           >
@@ -466,7 +544,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         </a>
       </header>
 
-      {!buscaAtiva && (
+      {aba !== 'inicio' && !buscaAtiva && (
         <nav className="vod-letras">
           {LETRAS.map((l) => {
             const g = contagem.get(l);
@@ -491,8 +569,11 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
 
       {erro && <p className="vod-erro">{erro}</p>}
 
-      {carregando && <p className="vod-aviso">Carregando…</p>}
+      {aba !== 'inicio' && carregando && <p className="vod-aviso">Carregando…</p>}
 
+      {aba === 'inicio' ? (
+        <Fileiras filas={filas} termo={termo} aoAbrir={abrir} />
+      ) : (
       <div className="vod-grade">
         {resultados.slice(0, visiveis).map((item) => (
           <button key={item.chave} className="vod-card" onClick={() => abrir(item)}>
@@ -501,10 +582,11 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
           </button>
         ))}
       </div>
+      )}
 
       <div ref={sentinela} className="vod-sentinela" aria-hidden="true" />
 
-      {!carregando && resultados.length === 0 && (
+      {aba !== 'inicio' && !carregando && resultados.length === 0 && (
         <p className="vod-aviso">Nada por aqui. Tente outra letra ou outra busca.</p>
       )}
     </div>
