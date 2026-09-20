@@ -380,6 +380,23 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
       setCurrentTime(video.currentTime);
     };
 
+    /*
+     * A duração só existe depois que o vídeo carrega os metadados.
+     *
+     * Era aqui a barra parada: com HLS, a duração era lida no MANIFEST_PARSED
+     * do hls.js, e nesse instante `video.duration` ainda é NaN — o manifesto
+     * foi lido, mas o vídeo ainda não. A largura da barra é
+     * `currentTime / duration`, e com duração zero ela fica em zero para
+     * sempre, por mais que o tempo ande.
+     *
+     * Perguntar ao próprio elemento de vídeo, quando ele avisa que sabe,
+     * funciona para HLS e para MP4 sem distinção.
+     */
+    const handleDuration = () => {
+      const d = video.duration;
+      setDuration(Number.isFinite(d) && d > 0 ? d : 0);
+    };
+
     const handleProgress = () => {
       if (video.buffered.length > 0) {
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -401,13 +418,18 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleDuration);
+    video.addEventListener('durationchange', handleDuration);
     video.addEventListener('progress', handleProgress);
+    handleDuration();
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('ended', handleEnded);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleDuration);
+      video.removeEventListener('durationchange', handleDuration);
       video.removeEventListener('progress', handleProgress);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
