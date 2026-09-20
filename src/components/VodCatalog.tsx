@@ -337,6 +337,15 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       }));
   }, [busca, buscaExtra, buscandoExtra, buscandoColecao, itens, aba, termo]);
 
+  const fecharModal = useCallback(() => {
+    abertura.current += 1;
+    setAberto(null);
+    setEpisodiosAbertos(null);
+    setFontesAbertas(null);
+    setErroModal(null);
+    setModalCarregando(false);
+  }, []);
+
   /**
    * Abre o título no player, levando todas as fontes.
    *
@@ -347,6 +356,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
   const tocar = useCallback((titulo: string, fontes: MovieSource[], tipo: 'movie' | 'series') => {
     const primeira = fontes[0]?.url;
     if (!primeira) return;
+    fecharModal();
     onSelectMovie({
       id: `${tipo}-${titulo}-${primeira}`.slice(0, 200),
       name: titulo,
@@ -355,16 +365,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       category: tipo === 'series' ? 'Séries' : 'Filmes',
       type: tipo,
     });
-  }, [onSelectMovie]);
-
-  const fecharModal = useCallback(() => {
-    abertura.current += 1;
-    setAberto(null);
-    setEpisodiosAbertos(null);
-    setFontesAbertas(null);
-    setErroModal(null);
-    setModalCarregando(false);
-  }, []);
+  }, [onSelectMovie, fecharModal]);
 
   useEffect(() => {
     if (!aberto) return;

@@ -7,6 +7,7 @@
  */
 export interface ChannelSource {
   url: string;
+  quality?: string;
   referer?: string;
   userAgent?: string;
   /** KID do ClearKey, em hexadecimal. */
