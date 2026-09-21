@@ -15,6 +15,7 @@ import type { Channel, ChannelSource } from '../types/channel';
 import { channels as localChannels, adultChannels, categoryOrder } from '../data/channels';
 import { restrictedChannels } from '../data/restrictedChannels';
 import { normalise } from '../utils/nomes';
+import { peneirarCanais } from './fontesDesativadas';
 
 export { normalise };
 
@@ -298,7 +299,11 @@ async function baixar(url: string): Promise<string> {
 }
 
 function montar(catalogo: string, canais: string): Channel[] {
-  return toChannels(mergeCatalogs(parseCatalog(catalogo), parseCatalog(canais)));
+  // O que está desligado no painel sai antes de virar canal: `toChannels` usa
+  // a primeira fonte como endereço do canal, e ela não pode ser uma morta.
+  return toChannels(
+    peneirarCanais(mergeCatalogs(parseCatalog(catalogo), parseCatalog(canais))),
+  );
 }
 
 /** A lista que já está em disco, sem tocar na rede. Vazia na primeira visita. */

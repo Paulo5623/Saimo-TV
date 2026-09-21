@@ -4,6 +4,7 @@ import { AppHeader } from './components/AppHeader';
 import { Toast } from './components/Toast';
 import { getAllChannels, adultChannels } from './data/channels';
 import { fetchChannels, cachedChannels } from './services/catalogService';
+import { atualizar as atualizarFontesDesativadas, VALIDADE_MS as FONTES_MS } from './services/fontesDesativadas';
 import { registerChannels, fetchRealEPG } from './services/epgService';
 import type { Channel } from './types/channel';
 import type { Movie } from './types/movie';
@@ -109,12 +110,33 @@ function TVPage() {
     // Esperar o cache envelhecer (seis horas) escondia canal recém-publicado
     // de quem tinha aberto o site no mesmo dia — foi assim com o ESPN 5.
     let vivo = true;
-    fetchChannels()
+    // A lista de servidores desligados vem antes do catálogo: chegando depois,
+    // a tela mostraria por um instante canais que já não abrem.
+    atualizarFontesDesativadas()
+      .catch(() => false)
+      .then(() => fetchChannels())
       .then((lista) => { if (vivo && lista) setRemoteChannels(lista); })
       .catch((err) => console.error('Erro ao carregar catálogo remoto:', err));
     return () => { vivo = false; };
     // Uma vez por montagem: a lista não muda enquanto a pessoa assiste.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /*
+   * Um servidor desligado no painel tem que sumir da tela em minutos, que é o
+   * tempo que alguém aguenta um canal quebrado — sem recarregar a página. A
+   * lista é remontada do que já está em disco: nada é rebaixado da rede, só o
+   * que está morto sai e o que foi religado volta.
+   */
+  useEffect(() => {
+    const relogio = window.setInterval(() => {
+      void atualizarFontesDesativadas().then((mudou) => {
+        if (!mudou) return;
+        const lista = cachedChannels();
+        if (lista) setRemoteChannels(lista);
+      });
+    }, FONTES_MS);
+    return () => window.clearInterval(relogio);
   }, []);
 
   /*

@@ -15,6 +15,7 @@
  */
 
 import { melhorMatch, posterUrl, type TmdbTipo } from './tmdbService';
+import { peneirar as semDesligados } from './fontesDesativadas';
 
 const BASE = 'https://raw.githubusercontent.com/gabrielsaimo/SaimoPlayer/main/vod/';
 
@@ -175,12 +176,12 @@ export async function filmes(letra: string, reservados = false): Promise<Filme[]
       for (const parte of campos.slice(1)) {
         const marca = parte.indexOf('=');
         if (marca <= 0) continue;
-        const urls = parte
+        const urls = semDesligados(parte
           .slice(marca + 1)
           .split(',')
           .filter(Boolean)
           .map(montar)
-          .filter(Boolean);
+          .filter(Boolean));
         if (urls.length) fontes[parte.slice(0, marca)] = urls;
       }
       if (Object.keys(fontes).length) out.push({ titulo: campos[0], fontes });
@@ -228,7 +229,7 @@ export async function episodios(letra: string, serie: Serie): Promise<Episodio[]
       if (!dentro) continue;
       const campos = linha.split('\t');
       if (campos.length < 4) continue;
-      const urls = campos[3].split(',').filter(Boolean).map(montar).filter(Boolean);
+      const urls = semDesligados(campos[3].split(',').filter(Boolean).map(montar).filter(Boolean));
       if (!urls.length) continue;
       out.push({
         temporada: Number(campos[0]) || 0,
@@ -369,9 +370,9 @@ export async function colecao(tipo: ColecaoVod): Promise<SerieColecao[]> {
         }
         if (!atual) continue;
         const [temporada, numero, versao, urlsTexto] = linhaBruta.split('\t');
-        const urls = (urlsTexto ?? '').split(',')
+        const urls = semDesligados((urlsTexto ?? '').split(',')
           .map((url) => montar(url.trim()))
-          .filter(Boolean);
+          .filter(Boolean));
         if (!urls.length) continue;
         atual.episodios.push({
           temporada: Number(temporada) || 0,
