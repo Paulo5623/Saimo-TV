@@ -431,3 +431,22 @@
 
 .vod-generos button:hover { background: rgba(255, 255, 255, 0.16); }
 .vod-generos button.ativa { background: var(--accent, #e50914); color: #fff; }
+
+/* Sem ficha no TMDB: uma moldura com um risco, que diz "aqui não há imagem"
+   em vez de fingir que há. */
+.vod-poster-vazio.sem-ficha {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.vod-poster-vazio.sem-ficha::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 50%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  transform: rotate(-32deg);
+}

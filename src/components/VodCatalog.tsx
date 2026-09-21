@@ -14,7 +14,8 @@ import type { Movie, MovieSource } from '../types/movie';
 import {
   LETRAS,
   buscar,
-  capa,
+  todos as listarTudo,
+  capaDaFicha,
   colecao,
   destaques,
   episodios,
@@ -24,7 +25,6 @@ import {
   filmes as listarFilmes,
   indice,
   serie as buscarSerie,
-  series as listarSeries,
   type Achado,
   type Episodio,
   type FilaDestaque,
@@ -57,6 +57,9 @@ interface Item {
   rotulo: string;
   serie: boolean;
   letra: string;
+  /** O ano da série, que é campo à parte no acervo — e não dá para tirar da
+   *  chave, porque há título com dois-pontos dentro ("#ComVocê: Volume 2"). */
+  ano?: string;
   filme?: Filme;
   dados?: Serie;
   colecao?: SerieColecao;
@@ -79,11 +82,24 @@ function nomeDaFonte(url: string): string {
   catch { return 'Servidor alternativo'; }
 }
 
-/** Capa buscada só quando o cartão aparece: são vinte na tela, não trinta mil. */
-function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
-  const [src, setSrc] = useState<string | null>(null);
+/**
+ * A capa de um cartão.
+ *
+ * O endereço vem da ficha publicada, resolvida pelo id do TMDB — não mais de
+ * uma busca por nome feita aqui, que era lenta e trocava filmes de nome igual.
+ * Quem não tem ficha fica sem capa, com a marca de "sem imagem" no lugar.
+ *
+ * A imagem só é pedida quando o cartão chega perto da tela: são trinta mil no
+ * acervo e vinte à vista.
+ */
+function Poster({ titulo, serie, fichas }: {
+  titulo: string;
+  serie: boolean;
+  fichas: Generos | null;
+}) {
   const [visivel, setVisivel] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const src = fichas ? capaDaFicha(fichas, titulo, serie) : null;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -99,18 +115,11 @@ function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!visivel) return;
-    let vivo = true;
-    capa(titulo, serie).then((url) => { if (vivo) setSrc(url); });
-    return () => { vivo = false; };
-  }, [visivel, titulo, serie]);
-
   return (
     <div className="vod-poster" ref={ref}>
-      {src
+      {visivel && src
         ? <img src={src} alt={titulo} loading="lazy" />
-        : <div className="vod-poster-vazio">{titulo.slice(0, 2).toUpperCase()}</div>}
+        : <div className={`vod-poster-vazio${src ? '' : ' sem-ficha'}`} aria-label="Sem imagem" />}
     </div>
   );
 }
@@ -127,26 +136,22 @@ function Poster({ titulo, serie }: { titulo: string; serie: boolean }) {
  * ao TMDB: o `src` do pôster já veio no arquivo.
  */
 function Fileiras({
-  filas, termo, genero, generos, aoAbrir,
+  filas, termo, aoAbrir,
 }: {
   filas: FilaDestaque[];
   termo: string;
-  genero: string;
-  generos: Generos | null;
   aoAbrir: (destaque: ItemDestaque) => void;
 }) {
   const procurado = normalizar(termo.trim());
   const visiveis = useMemo(() => {
-    if (!procurado && !genero) return filas;
+    if (!procurado) return filas;
     return filas
       .map((fila) => ({
         ...fila,
-        itens: fila.itens.filter((item) =>
-          (!procurado || normalizar(item.titulo).includes(procurado))
-          && (!genero || !generos || temGenero(generos, item.titulo, item.tipo !== 'f', genero))),
+        itens: fila.itens.filter((item) => normalizar(item.titulo).includes(procurado)),
       }))
       .filter((fila) => fila.itens.length > 0);
-  }, [filas, procurado, genero, generos]);
+  }, [filas, procurado]);
 
   if (!filas.length) return <p className="vod-aviso">Carregando…</p>;
   if (!visiveis.length) return <p className="vod-aviso">Nada por aqui. Tente outra busca.</p>;
@@ -242,37 +247,35 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     setErro(null);
 
     const trabalho = eColecao(aba)
-      ? colecao(aba).then((lista) => lista
-        .filter((s) => buscandoColecao || letraDe(s.titulo) === letra)
-        .map<Item>((s) => ({
-          chave: `${aba}:${s.tmdbId}:${s.titulo}`,
-          titulo: s.titulo,
-          rotulo: s.nomeCompleto,
-          serie: true,
-          letra,
-          colecao: s,
-        })))
-      : aba === 'series'
-      ? listarSeries(letra).then((lista) => lista.map<Item>((s) => ({
-        chave: `s:${s.titulo}:${s.ano}`,
+      ? colecao(aba).then((lista) => lista.map<Item>((s) => ({
+        chave: `${aba}:${s.tmdbId}:${s.titulo}`,
         titulo: s.titulo,
         rotulo: s.nomeCompleto,
         serie: true,
-        letra,
-        dados: s,
+        letra: letraDe(s.titulo),
+        colecao: s,
       })))
-      : listarFilmes(letra, aba === 'extra').then((lista) => lista.map<Item>((f) => ({
-        chave: `${aba === 'extra' ? 'x' : 'f'}:${f.titulo}`,
+      : aba === 'extra'
+      ? listarFilmes(letra, true).then((lista) => lista.map<Item>((f) => ({
+        chave: `x:${f.titulo}`,
         titulo: f.titulo,
         rotulo: f.titulo,
         serie: false,
         letra,
         filme: f,
+      })))
+      : listarTudo(aba === 'series').then((lista) => lista.map<Item>((a) => ({
+        chave: `${a.serie ? 's' : 'f'}:${a.titulo}:${a.ano}`,
+        titulo: a.titulo,
+        rotulo: a.nomeCompleto,
+        serie: a.serie,
+        letra: a.letra,
+        ano: a.ano,
       })));
 
     trabalho
       .then((lista) => { if (vivo) setItens(lista); })
-      .catch(() => { if (vivo) { setItens([]); setErro('Não foi possível carregar esta letra.'); } })
+      .catch(() => { if (vivo) { setItens([]); setErro('Não foi possível carregar o acervo.'); } })
       .finally(() => { if (vivo) setCarregando(false); });
 
     return () => { vivo = false; };
@@ -344,6 +347,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         rotulo: a.nomeCompleto,
         serie: a.serie,
         letra: a.letra,
+        ano: a.ano,
       }));
   }, [busca, buscaExtra, buscandoExtra, buscandoColecao, itens, aba, termo]);
 
@@ -424,7 +428,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         return;
       }
 
-      const ano = item.dados?.ano ?? item.chave.split(':')[2] ?? '';
+      const ano = item.dados?.ano ?? item.ano ?? '';
       const dados = item.dados
         ?? await buscarSerie({ titulo: item.titulo, serie: true, letra: item.letra, ano, nomeCompleto: item.rotulo });
       if (tentativa !== abertura.current) return;
@@ -496,7 +500,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
     return [...new Set(episodiosAbertos.map((e) => e.temporada))].sort((a, b) => a - b);
   }, [episodiosAbertos]);
 
-  const listaAtual = buscaAtiva ? `busca:${termo.trim()}:${aba}` : `${aba}:${letra}`;
+  const listaAtual = buscaAtiva ? `busca:${termo.trim()}:${aba}` : aba === 'extra' ? `extra:${letra}` : aba;
   const visiveis = pagina.lista === listaAtual ? pagina.quantos : PAGINA;
 
   useEffect(() => {
@@ -605,7 +609,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       {/* O catálogo não tem gênero: ele vem de um arquivo publicado à parte.
           Por isso a régua só existe depois que esse arquivo chega — oferecer um
           filtro que devolve vazio é pior que não oferecer. */}
-      {generos && generos.todos.length > 0 && (
+      {aba !== 'inicio' && generos && generos.todos.length > 0 && (
         <nav className="vod-generos">
           <button className={genero === '' ? 'ativa' : ''} onClick={() => setGenero('')}>Todos</button>
           {generos.todos.map((g) => (
@@ -620,19 +624,18 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
         </nav>
       )}
 
-      {aba !== 'inicio' && !buscaAtiva && (
+      {/* A letra sobrou só no 18+: ele não entra no índice de busca, então
+          continua sendo pedido uma letra de cada vez. */}
+      {aba === 'extra' && !buscaAtiva && (
         <nav className="vod-letras">
           {LETRAS.map((l) => {
             const g = contagem.get(l);
-            const quantos = eColecao(aba) ? undefined
-              : aba === 'series' ? g?.series ?? 0
-              : aba === 'extra' ? g?.reservados ?? 0
-              : g?.filmes ?? 0;
+            const quantos = g?.reservados ?? 0;
             return (
               <button
                 key={l}
                 className={l === letra ? 'ativa' : ''}
-                disabled={!eColecao(aba) && gavetas.length > 0 && quantos === 0}
+                disabled={gavetas.length > 0 && quantos === 0}
                 onClick={() => { setLetra(l); setAberto(null); }}
                 title={quantos ? `${quantos} títulos` : undefined}
               >
@@ -648,12 +651,12 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       {aba !== 'inicio' && carregando && <p className="vod-aviso">Carregando…</p>}
 
       {aba === 'inicio' ? (
-        <Fileiras filas={filas} termo={termo} genero={genero} generos={generos} aoAbrir={abrirDestaque} />
+        <Fileiras filas={filas} termo={termo} aoAbrir={abrirDestaque} />
       ) : (
       <div className="vod-grade">
         {resultadosPorGenero.slice(0, visiveis).map((item) => (
           <button key={item.chave} className="vod-card" onClick={() => abrir(item)}>
-            <Poster titulo={item.rotulo} serie={item.serie} />
+            <Poster titulo={item.titulo} serie={item.serie} fichas={generos} />
             <span className="vod-card-titulo">{item.rotulo}</span>
           </button>
         ))}
@@ -663,7 +666,7 @@ export function VodCatalog({ onSelectMovie, onBack, isAdultUnlocked }: VodCatalo
       <div ref={sentinela} className="vod-sentinela" aria-hidden="true" />
 
       {aba !== 'inicio' && !carregando && resultadosPorGenero.length === 0 && (
-        <p className="vod-aviso">Nada por aqui. Tente outra letra ou outra busca.</p>
+        <p className="vod-aviso">Nada por aqui. Tente outra busca.</p>
       )}
     </div>
     {aberto && createPortal(

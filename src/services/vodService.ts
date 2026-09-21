@@ -281,6 +281,38 @@ export async function buscar(termo: string): Promise<Achado[]> {
   return out;
 }
 
+/**
+ * Todo o acervo de um tipo, de uma vez.
+ *
+ * Antes a tela pedia uma letra de cada vez, porque o acervo é publicado por
+ * letra e a letra A sozinha já traz três mil e quinhentos filmes. Mas o índice
+ * de busca tem os trinta mil nomes em menos de um megabyte, e é o mesmo
+ * arquivo que a busca já baixa: dá para mostrar tudo e deixar a pessoa rolar,
+ * sem escolher letra nenhuma. O endereço de cada título continua vindo da
+ * letra dele, na hora em que for aberto.
+ */
+export async function todos(serie: boolean): Promise<Achado[]> {
+  const texto = indiceBusca ?? (await arquivo('busca.txt'));
+  if (!texto) return [];
+  indiceBusca = texto;
+
+  const out: Achado[] = [];
+  for (const linha of texto.split('\n')) {
+    const campos = linha.split('\t');
+    if (campos.length < 3) continue;
+    if ((campos[1] === 's') !== serie) continue;
+    const ano = campos[3] ?? '';
+    out.push({
+      titulo: campos[0],
+      serie,
+      letra: campos[2],
+      ano,
+      nomeCompleto: ano.trim() ? `${campos[0]} (${ano})` : campos[0],
+    });
+  }
+  return out;
+}
+
 /** Um filme específico, pelo nome, dentro da letra dele. */
 export async function filme(achado: Achado): Promise<Filme | null> {
   const lista = await filmes(achado.letra);
@@ -459,6 +491,8 @@ export async function destaques(): Promise<FilaDestaque[]> {
 export interface Generos {
   /** "f|Nome" ou "s|Nome" -> os gêneros dele. */
   mapa: Map<string, string[]>;
+  /** "f|Nome" ou "s|Nome" -> o endereço do pôster, quando o TMDB conhece. */
+  capas: Map<string, string>;
   /** Todos os que aparecem no acervo, em ordem. */
   todos: string[];
 }
@@ -467,19 +501,26 @@ let generosEmMemoria: Generos | null = null;
 
 export async function generos(): Promise<Generos> {
   if (generosEmMemoria) return generosEmMemoria;
-  const texto = await arquivo('generos.txt');
+  const texto = await arquivo('fichas.txt');
   const mapa = new Map<string, string[]>();
+  const capas = new Map<string, string>();
   const vistos = new Set<string>();
+  let base = '';
+  // tipo \t título \t id do TMDB \t pôster \t gêneros
   for (const linha of (texto ?? '').split('\n')) {
-    if (!linha || linha.startsWith('#')) continue;
+    if (!linha) continue;
+    if (linha.startsWith('capa:')) { base = linha.slice('capa:'.length).trim(); continue; }
+    if (linha.startsWith('#')) continue;
     const campos = linha.split('\t');
-    if (campos.length < 3 || !campos[2]) continue;
-    const lista = campos[2].split(',').map((g) => g.trim()).filter(Boolean);
+    if (campos.length < 5) continue;
+    const chave = `${campos[0]}|${campos[1]}`;
+    if (campos[3]) capas.set(chave, base + campos[3]);
+    const lista = campos[4].split(',').map((g) => g.trim()).filter(Boolean);
     if (!lista.length) continue;
-    mapa.set(`${campos[0]}|${campos[1]}`, lista);
+    mapa.set(chave, lista);
     lista.forEach((g) => vistos.add(g));
   }
-  generosEmMemoria = { mapa, todos: [...vistos].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
+  generosEmMemoria = { mapa, capas, todos: [...vistos].sort((a, b) => a.localeCompare(b, 'pt-BR')) };
   return generosEmMemoria;
 }
 
@@ -488,7 +529,27 @@ export function semAno(titulo: string): string {
   return titulo.replace(/\s*\(\d{4}\)\s*$/, '').trim();
 }
 
+/**
+ * A chave é o nome como o acervo o escreve — e o acervo escreve o ano dentro do
+ * nome do filme, mas guarda o da série num campo à parte. Quem chama nem sempre
+ * sabe de qual dos dois veio, então procura-se o nome como ele chegou e, não
+ * achando, sem o ano.
+ */
+/**
+ * O pôster de um título, pelo id que o gerador já resolveu.
+ *
+ * Antes a capa era procurada pelo nome no TMDB, no navegador de cada pessoa:
+ * lento, e errado quando dois filmes se chamam igual. Quem não tem ficha fica
+ * sem capa, e a tela põe uma marca no lugar.
+ */
+export function capaDaFicha(g: Generos, titulo: string, serie: boolean): string | null {
+  const marca = serie ? 's' : 'f';
+  return g.capas.get(`${marca}|${titulo}`) ?? g.capas.get(`${marca}|${semAno(titulo)}`) ?? null;
+}
+
 export function temGenero(g: Generos, titulo: string, serie: boolean, genero: string): boolean {
   if (!genero) return true;
-  return (g.mapa.get(`${serie ? 's' : 'f'}|${semAno(titulo)}`) ?? []).includes(genero);
+  const marca = serie ? 's' : 'f';
+  const lista = g.mapa.get(`${marca}|${titulo}`) ?? g.mapa.get(`${marca}|${semAno(titulo)}`) ?? [];
+  return lista.includes(genero);
 }
