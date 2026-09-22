@@ -29,7 +29,10 @@ jobs:
       - name: Validar player e listas de canais
         run: bun run test:essential
 
-      - run: bun run build
+      - name: Compilar para o caminho do GitHub Pages
+        run: bun run build
+        env:
+          VITE_BASE_PATH: /Saimo-TV/
 
       - uses: actions/upload-pages-artifact@v3
         with:

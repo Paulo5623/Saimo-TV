@@ -46,7 +46,9 @@ function proxyDev(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/',
+  // O fork é publicado em /Saimo-TV/ no GitHub Pages. Outros ambientes
+  // continuam usando a raiz quando VITE_BASE_PATH não estiver definido.
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), proxyDev()],
   build: {
     rollupOptions: {
