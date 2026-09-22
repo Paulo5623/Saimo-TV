@@ -1353,3 +1353,8 @@
   .player-overlay.aviso h3 { font-size: 1.15rem; }
   .aviso-botao { width: 100%; justify-content: center; padding: 16px 20px; }
 }
+.external-menu-wrapper,
+.external-players,
+.error-hint {
+  display: none !important;
+}

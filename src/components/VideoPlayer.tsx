@@ -8,6 +8,7 @@ import { buildAttempts, isDash, isMpegTs, marcarSemCors, type Attempt } from '..
 import { makeNestedPathLoader } from '../utils/hlsLoader';
 import { playDash, type DashHandle } from '../services/dashPlayer';
 import * as telemetria from '../services/telemetria';
+import { usePublicUiConfig } from '../hooks/usePublicUiConfig';
 import './VideoPlayer.css';
 import './AvisoApp.css';
 
@@ -24,6 +25,7 @@ export const VideoPlayer = memo(function VideoPlayer({
   onToggleTheater,
   onOpenGuide,
 }: VideoPlayerProps) {
+  const { appPromotionEnabled, appDownloadUrl } = usePublicUiConfig();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -955,10 +957,7 @@ export const VideoPlayer = memo(function VideoPlayer({
                 </svg>
                 Abrir {channel.name} numa página separada
               </button>
-              <p className="http-dica">
-                Se o navegador baixar um arquivo em vez de tocar, abra esse arquivo no VLC.
-              </p>
-              <div className="aviso-app">
+              {appPromotionEnabled && <div className="aviso-app">
                 <div>
                   <strong>No aplicativo, este canal abre normalmente.</strong>
                   <span>
@@ -966,10 +965,10 @@ export const VideoPlayer = memo(function VideoPlayer({
                     canal, então não esbarra no bloqueio que existe aqui dentro do navegador.
                   </span>
                 </div>
-                <a href="#/app" className="aviso-app-botao" data-focusable="true">
+                <a href={appDownloadUrl} className="aviso-app-botao" data-focusable="true">
                   Baixar o aplicativo
                 </a>
-              </div>
+              </div>}
               <button onClick={retryLoad} className="retry-btn retry-btn-secundario">
                 Tentar de novo aqui
               </button>

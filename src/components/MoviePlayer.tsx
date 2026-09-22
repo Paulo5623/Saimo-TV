@@ -5,6 +5,7 @@ import { getProxiedUrl, needsProxy } from '../utils/proxyUrl';
 import { isHls } from '../utils/streamUrl';
 import castService, { type CastMethod, type CastState } from '../services/castService';
 import * as telemetria from '../services/telemetria';
+import { usePublicUiConfig } from '../hooks/usePublicUiConfig';
 import './MoviePlayer.css';
 import './AvisoApp.css';
 
@@ -25,6 +26,7 @@ interface MoviePlayerProps {
 }
 
 export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo, onNextEpisode }: MoviePlayerProps) {
+  const { appPromotionEnabled, appDownloadUrl } = usePublicUiConfig();
   /** Para o monitor: quando esta abertura começou e se já avisou que tocou. */
   const aberturaRef = useRef<{ titulo: string; url: string; desde: number; avisado: boolean; falhou: boolean } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1011,7 +1013,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 </svg>
                 Abrir numa página separada
               </button>
-              <div className="aviso-app">
+              {appPromotionEnabled && <div className="aviso-app">
                 <div>
                   <strong>No aplicativo, isso nem aparece.</strong>
                   <span>
@@ -1019,10 +1021,10 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                     qualquer fonte, sem essa volta — e os filmes em 4K tocam na maior resolução.
                   </span>
                 </div>
-                <a href="#/app" className="aviso-app-botao" data-focusable="true">
+                <a href={appDownloadUrl} className="aviso-app-botao" data-focusable="true">
                   Baixar o aplicativo
                 </a>
-              </div>
+              </div>}
 
               {fontes.length > 1 && (
                 <div className="aviso-fontes">
@@ -1053,35 +1055,6 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 >
                   📋 Copiar endereço
                 </button>
-              </div>
-              <div className="external-players" style={{ marginTop: 0 }}>
-                <p>Ou abrir em player externo:</p>
-                <div className="player-buttons">
-                  <button
-                    onClick={() => openInExternalPlayer('vlc')}
-                    title="VLC Media Player"
-                    data-focusable="true"
-                    data-nav-group="external-players"
-                  >
-                    VLC
-                  </button>
-                  <button
-                    onClick={() => openInExternalPlayer('iina')}
-                    title="IINA (macOS)"
-                    data-focusable="true"
-                    data-nav-group="external-players"
-                  >
-                    IINA
-                  </button>
-                  <button
-                    onClick={() => openInExternalPlayer('potplayer')}
-                    title="PotPlayer"
-                    data-focusable="true"
-                    data-nav-group="external-players"
-                  >
-                    PotPlayer
-                  </button>
-                </div>
               </div>
             </>
           ) : (

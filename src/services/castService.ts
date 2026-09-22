@@ -377,16 +377,9 @@ class CastService {
         icon: 'copy',
         available: true,
       },
-      {
-        method: 'openExternal' as CastMethod,
-        name: 'Abrir em player externo',
-        description: 'Abrir em VLC, IINA ou outro player',
-        icon: 'external',
-        available: true,
-      },
     ];
     
-    return methods.filter(m => m.available || m.method === 'copyLink' || m.method === 'openExternal');
+    return methods.filter(m => m.available || m.method === 'copyLink');
   }
 
   /**
