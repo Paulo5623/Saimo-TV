@@ -387,3 +387,7 @@
     padding: 2px 7px;
   }
 }
+.download-hero > .tv-brand {
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}

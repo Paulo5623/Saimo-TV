@@ -592,3 +592,11 @@
   transform: translateY(-1px);
   filter: brightness(1.1);
 }
+.home-header > .tv-brand {
+  flex-shrink: 0;
+}
+
+.home-header > .tv-brand .tv-brand__mark {
+  width: 48px;
+  height: 48px;
+}

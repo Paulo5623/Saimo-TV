@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { descreverAparelho } from '../services/telemetria';
+import { Brand } from './Brand';
 import './AppDownload.css';
 
 /**
@@ -34,7 +35,7 @@ const APPS: App[] = [
   {
     id: 'tvbox',
     aba: 'TV Box',
-    titulo: 'Saimo TV para TV Box',
+    titulo: 'TV Ligada para TV Box',
     subtitulo: 'Android TV, Fire TV Stick, Mi Box, Chromecast com Google TV e TV Box Android',
     arquivo: 'SaimoTV.apk',
     atalho: '/tvbox',
@@ -44,13 +45,13 @@ const APPS: App[] = [
       { titulo: 'Instale o Downloader', texto: 'Na loja do aparelho (Play Store ou Amazon Appstore), procure por “Downloader” e instale.' },
       { titulo: 'Digite o endereço', texto: 'Abra o Downloader e digite o endereço curto mostrado acima. O download começa sozinho.' },
       { titulo: 'Permita a instalação', texto: 'Se o aparelho pedir, ative “Instalar apps desconhecidos” para o Downloader.' },
-      { titulo: 'Pronto', texto: 'Instale e abra o Saimo TV. As próximas versões são oferecidas dentro do próprio app.' },
+      { titulo: 'Pronto', texto: 'Instale e abra a TV Ligada. As próximas versões são oferecidas dentro do próprio app.' },
     ],
   },
   {
     id: 'cell',
     aba: 'Celular',
-    titulo: 'Saimo TV para celular',
+    titulo: 'TV Ligada para celular',
     subtitulo: 'Celulares e tablets Android',
     arquivo: 'SaimoCell.apk',
     atalho: '/celular',
@@ -60,13 +61,13 @@ const APPS: App[] = [
       { titulo: 'Baixe o APK', texto: 'Toque no botão acima. O navegador pode avisar que o arquivo é um app: confirme o download.' },
       { titulo: 'Abra o arquivo', texto: 'Toque na notificação de download concluído, ou abra o arquivo pela pasta Downloads.' },
       { titulo: 'Permita a instalação', texto: 'Se o Android pedir, ative “Permitir desta fonte” para o navegador e volte.' },
-      { titulo: 'Pronto', texto: 'Instale e abra o Saimo TV. As próximas versões são oferecidas dentro do próprio app.' },
+      { titulo: 'Pronto', texto: 'Instale e abra a TV Ligada. As próximas versões são oferecidas dentro do próprio app.' },
     ],
   },
   {
     id: 'windows',
     aba: 'Windows',
-    titulo: 'Saimo TV para Windows',
+    titulo: 'TV Ligada para Windows',
     subtitulo: 'PC e notebook com Windows 10 ou 11 (64 bits)',
     arquivo: 'SaimoTV-Instalador.msi',
     atalho: '/windows',
@@ -74,7 +75,7 @@ const APPS: App[] = [
     requisitos: ['Windows 10 ou 11, 64 bits', 'Cerca de 150 MB livres', 'Conexão com a internet'],
     passos: [
       { titulo: 'Baixe o instalador', texto: 'Clique no botão acima. O navegador pode avisar que o arquivo é pouco baixado: mande manter.' },
-      { titulo: 'Abra o arquivo baixado', texto: 'Clique duas vezes no “SaimoTV-Instalador.msi”. Ele instala só para o seu usuário, sem pedir senha de administrador.' },
+      { titulo: 'Abra o arquivo baixado', texto: 'Clique duas vezes no instalador .msi. Ele instala só para o seu usuário, sem pedir senha de administrador.' },
       { titulo: 'Siga o instalador', texto: 'Aceite os termos e clique em Instalar. No fim, o atalho fica no menu Iniciar e na Área de Trabalho.' },
       { titulo: 'Se o Windows avisar', texto: 'Na tela azul do Windows Defender, clique em “Mais informações” e depois em “Executar assim mesmo”: o app não tem assinatura paga da Microsoft.' },
     ],
@@ -82,7 +83,7 @@ const APPS: App[] = [
   {
     id: 'mac',
     aba: 'Mac',
-    titulo: 'Saimo TV para Mac',
+    titulo: 'TV Ligada para Mac',
     subtitulo: 'Macs com chip Apple (M1, M2, M3, M4…)',
     arquivo: 'SaimoTV.dmg',
     atalho: '/mac',
@@ -90,7 +91,7 @@ const APPS: App[] = [
     requisitos: ['macOS 15 Sequoia ou mais novo', 'Mac com chip Apple (não roda em Mac Intel)', 'Conexão com a internet'],
     passos: [
       { titulo: 'Baixe o DMG', texto: 'Clique no botão acima. O arquivo vai para a pasta Downloads.' },
-      { titulo: 'Arraste para Aplicativos', texto: 'Abra o SaimoTV.dmg e arraste o Saimo TV para a pasta Aplicativos, substituindo o antigo se houver.' },
+      { titulo: 'Arraste para Aplicativos', texto: 'Abra o arquivo baixado e arraste a TV Ligada para a pasta Aplicativos, substituindo a versão anterior se houver.' },
       { titulo: 'Libere na primeira abertura', texto: 'Se o macOS disser que não pode verificar o app, vá em Ajustes do Sistema › Privacidade e Segurança e clique em “Abrir Mesmo Assim”.' },
       { titulo: 'Pronto', texto: 'O app avisa quando sair versão nova e abre o download no navegador.' },
     ],
@@ -176,7 +177,7 @@ function Icone({ id }: { id: AppId }) {
 
 export function AppDownload() {
   const navigate = useNavigate();
-  const deteccao = useMemo(detectar, []);
+  const deteccao = useMemo(() => detectar(), []);
   const [aba, setAba] = useState<AppId>(deteccao.recomendado ?? 'tvbox');
   const [lancamento, setLancamento] = useState<Lancamento | null>(null);
 
@@ -222,8 +223,8 @@ export function AppDownload() {
 
       <main className="download-main">
         <section className="download-hero">
-          <h1>Baixe o Saimo<span>TV</span></h1>
-          <p>Grátis e sem cadastro. Escolha onde vai assistir.</p>
+          <Brand size="hero" tagline="Aplicativos para todos os seus dispositivos" />
+          <p>Escolha onde vai assistir.</p>
           <p className="download-detected">Você está em: <strong>{deteccao.aparelho}</strong></p>
           {deteccao.aviso && <p className="download-aviso">{deteccao.aviso}</p>}
         </section>

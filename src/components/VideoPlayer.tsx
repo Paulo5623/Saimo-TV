@@ -962,7 +962,7 @@ export const VideoPlayer = memo(function VideoPlayer({
                 <div>
                   <strong>No aplicativo, este canal abre normalmente.</strong>
                   <span>
-                    O Saimo TV para Windows, Mac, Android e TV Box fala direto com o servidor do
+                    A TV Ligada para Windows, Mac, Android e TV Box fala direto com o servidor do
                     canal, então não esbarra no bloqueio que existe aqui dentro do navegador.
                   </span>
                 </div>

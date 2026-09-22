@@ -1015,7 +1015,7 @@ export const MoviePlayer = memo(function MoviePlayer({ movie, onBack, seriesInfo
                 <div>
                   <strong>No aplicativo, isso nem aparece.</strong>
                   <span>
-                    No Saimo TV para Windows, Mac, Android e TV Box o vídeo abre direto, em
+                    Na TV Ligada para Windows, Mac, Android e TV Box o vídeo abre direto, em
                     qualquer fonte, sem essa volta — e os filmes em 4K tocam na maior resolução.
                   </span>
                 </div>

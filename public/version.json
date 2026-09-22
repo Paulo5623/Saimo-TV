@@ -1,5 +1,8 @@
 {
   "version": "13.2",
   "buildNumber": 132,
-  "forceUpdate": true
+  "forceUpdate": true,
+  "updateProvider": "github",
+  "repository": "gabrielsaimo/SaimoPlayer",
+  "latestReleaseApi": "https://api.github.com/repos/gabrielsaimo/SaimoPlayer/releases/latest"
 }

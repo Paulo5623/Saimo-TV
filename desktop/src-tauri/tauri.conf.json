@@ -25,10 +25,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "copyright": "SaimoTV",
+    "copyright": "TV Ligada",
     "category": "Entertainment",
     "shortDescription": "Canais, filmes e séries",
-    "longDescription": "Canais ao vivo, filmes e séries com guia de programação, a mesma lista dos outros aplicativos SaimoTV.",
+    "longDescription": "TV Ligada: canais ao vivo, filmes e séries com guia de programação em todos os seus dispositivos.",
     "windows": {
       "nsis": {
         "installMode": "currentUser",

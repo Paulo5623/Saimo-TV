@@ -1,4 +1,4 @@
-//! SaimoTV para Windows.
+//! TV Ligada para Windows.
 //!
 //! A janela é a mesma tela do site, carregada de dentro do executável, com duas
 //! coisas que o navegador não pode dar:
@@ -55,7 +55,7 @@ pub fn run() {
 
             let manipulador = app.handle().clone();
             WebviewWindowBuilder::new(app, "principal", WebviewUrl::default())
-                .title("SaimoTV")
+                .title("TV Ligada")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(880.0, 560.0)
                 .center()
@@ -78,5 +78,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("erro ao abrir o SaimoTV");
+        .expect("erro ao abrir a TV Ligada");
 }

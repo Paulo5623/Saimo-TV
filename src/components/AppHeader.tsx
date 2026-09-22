@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, memo, useRef } from 'react';
+import { Brand } from './Brand';
 import './AppHeader.css';
 
 interface AppHeaderProps {
@@ -151,19 +152,7 @@ export const AppHeader = memo(function AppHeader({
                 data-focusable="true"
                 data-focus-key="header-logo"
               >
-                <div className="logo-icon">
-                  <svg viewBox="0 0 32 32" fill="none">
-                    <path d="M5 8C5 6.34315 6.34315 5 8 5H24C25.6569 5 27 6.34315 27 8V21C27 22.6569 25.6569 24 24 24H8C6.34315 24 5 22.6569 5 21V8Z" fill="url(#logoGrad)" />
-                    <path d="M12 12L21 16L12 20V12Z" fill="white" />
-                    <defs>
-                      <linearGradient id="logoGrad" x1="5" y1="5" x2="27" y2="24" gradientUnits="userSpaceOnUse">
-                        <stop stopColor="#8B5CF6" />
-                        <stop offset="1" stopColor="#EC4899" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                </div>
-                <span className="logo-text">Saimo<span>TV</span></span>
+                <Brand size="compact" />
                 {isAdultUnlocked && <span className="adult-badge">+18</span>}
               </button>
             )}
@@ -216,38 +205,6 @@ export const AppHeader = memo(function AppHeader({
             </svg>
             <span>Baixar app</span>
           </button>
-
-          {/* Onde a lista é publicada e onde se pede um canal que falta:
-              o mesmo repositório e o mesmo grupo que o aplicativo aponta. */}
-          <a
-            className="header-link-btn discord"
-            href="https://discord.gg/8DKqT3xJvD"
-            target="_blank"
-            rel="noreferrer noopener"
-            title="Comunidade no Discord"
-            aria-label="Comunidade no Discord"
-            data-focusable="true"
-            data-focus-key="header-discord"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M20.317 4.369A19.79 19.79 0 0 0 16.558 3c-.164.293-.355.686-.487.998a18.27 18.27 0 0 0-4.14 0A12.6 12.6 0 0 0 11.437 3a19.74 19.74 0 0 0-3.76 1.369C3.29 10.02 2.24 15.53 2.76 20.96a19.9 19.9 0 0 0 5.99 3.04c.484-.66.915-1.362 1.286-2.1a12.9 12.9 0 0 1-2.025-.973c.17-.124.336-.254.496-.388 3.9 1.79 8.12 1.79 11.973 0 .162.134.328.264.497.388-.647.38-1.325.706-2.03.974.372.737.802 1.439 1.286 2.099a19.86 19.86 0 0 0 5.994-3.04c.6-6.28-1.06-11.74-4.91-16.59ZM9.68 17.65c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.951-2.42 2.157-2.42 1.213 0 2.18 1.096 2.157 2.42 0 1.334-.951 2.42-2.157 2.42Zm7.64 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.951-2.42 2.157-2.42 1.213 0 2.18 1.096 2.157 2.42 0 1.334-.944 2.42-2.157 2.42Z" />
-            </svg>
-          </a>
-
-          <a
-            className="header-link-btn github"
-            href="https://github.com/gabrielsaimo/SaimoPlayer"
-            target="_blank"
-            rel="noreferrer noopener"
-            title="Lista de canais no GitHub"
-            aria-label="Lista de canais no GitHub"
-            data-focusable="true"
-            data-focus-key="header-github"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 .5C5.73.5.5 5.73.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2.1c-3.2.7-3.88-1.37-3.88-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.06.78 2.15v3.19c0 .31.21.67.8.55A11.5 11.5 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z" />
-            </svg>
-          </a>
 
           <button 
             className="header-home-btn" 

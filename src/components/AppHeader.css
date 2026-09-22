@@ -564,3 +564,15 @@
     display: none;
   }
 }
+.header-logo .tv-brand {
+  pointer-events: none;
+}
+
+.header-logo .tv-brand__mark {
+  width: 32px;
+  height: 32px;
+}
+
+.header-logo .tv-brand__name {
+  font-size: 1.2rem;
+}
