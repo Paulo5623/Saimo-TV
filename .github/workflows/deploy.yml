@@ -3,6 +3,16 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -16,6 +26,9 @@ jobs:
 
       - run: bun install
 
+      - name: Validar player e listas de canais
+        run: bun run test:essential
+
       - run: bun run build
 
       - uses: actions/upload-pages-artifact@v3
@@ -25,9 +38,6 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

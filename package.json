@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:essential": "node scripts/validateStreaming.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "desktop": "tauri dev --config desktop/src-tauri/tauri.conf.json",

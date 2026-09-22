@@ -1,0 +1,28 @@
+name: Verificar player e listas M3U
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  streaming-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Validar arquivos essenciais e listas remotas
+        run: bun run test:essential
+
+      - name: Compilar player e site
+        run: bun run build
